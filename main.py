@@ -41,6 +41,8 @@ def create_order(order: OrderCreate):
 
         cursor.execute(command, data_to_insert)
 
+        new_order_id = cursor.lastrowid
+
         conn.commit()
 
-    return {"message": f"Order created successfully, total price: {total_price}"}
+    return {"message": f"Order created successfully, total price: {total_price}", "order_id": new_order_id, "total_price": total_price}
