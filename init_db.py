@@ -26,14 +26,21 @@ cursor.execute('''
 ''')
 
 cursor.execute('''
+        CREATE TABLE item_categories (
+            category_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_name TEXT NOT NULL UNIQUE
+        );
+''')
+
+cursor.execute('''
         CREATE TABLE order_items (
             items_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_type TEXT NOT NULL,
+            category_id INTEGER,
             initial_count INTEGER NOT NULL,
             verified_count INTEGER,
             order_id INTEGER,
-            FOREIGN KEY (order_id) REFERENCES orders (order_id)
-                ON DELETE CASCADE
+            FOREIGN KEY (order_id) REFERENCES orders (order_id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES item_categories (category_id)
         );
 ''')
 
