@@ -63,3 +63,26 @@ def create_order_item(order_item: OrderItemCreate):
         conn.commit()
 
     return {"message": f"Successful input of items", "items_id": new_items_id}
+
+
+@app.get("/orders/{order_id}/items")
+def get_order_items(order_id: int):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        command = '''SELECT item_categories.category_name, order_items.initial_count
+        FROM order_items
+        JOIN item_categories ON order_items.category_id = item_categories.category_id
+        WHERE order_items.order_id = ?'''
+
+        cursor.execute(command, (order_id,))
+
+        raw_items = cursor.fetchall()
+
+        
+    formatted_items = []
+    for row in raw_items:
+        item_and_count = {"category": row[0], "count": row[1]}
+        formatted_items.append(item_and_count)
+
+    return {"order_id": order_id, "items": formatted_items}
