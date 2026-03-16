@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import sqlite3
 import math
-from schemas import CustomerCreate, OrderCreate
+from schemas import *
 
 app = FastAPI()
 
@@ -33,7 +33,6 @@ def create_order(order: OrderCreate):
     total_price = 165 * load
 
     with sqlite3.connect('laundry.db') as conn:
-    
         cursor = conn.cursor()
 
         command = 'INSERT INTO orders(weight_kg, total_price, payment_status, status, customer_id) VALUES (?, ?, ?, ?, ?)'
@@ -46,3 +45,21 @@ def create_order(order: OrderCreate):
         conn.commit()
 
     return {"message": f"Order created successfully, total price: {total_price}", "order_id": new_order_id, "total_price": total_price}
+
+
+@app.post("/order-items")
+def create_order_item(order_item: OrderItemCreate):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        command = "INSERT INTO order_items (order_id, category_id, initial_count) VALUES (?, ?, ?)"
+
+        data_to_insert = (order_item.order_id, order_item.category_id, order_item.initial_count)
+
+        cursor.execute(command, data_to_insert)
+
+        new_items_id = cursor.lastrowid
+
+        conn.commit()
+
+    return {"message": f"Successful input of items", "items_id": new_items_id}

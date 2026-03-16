@@ -11,3 +11,9 @@ class OrderCreate(BaseModel):
     customer_id: int
     weight_kg: float
     payment_status: Literal['PAID', 'UNPAID']
+
+
+class OrderItemCreate(BaseModel):
+    order_id: int
+    category_id: int
+    initial_count: int
