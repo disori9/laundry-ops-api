@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import sqlite3
 import math
 from schemas import *
@@ -114,6 +114,9 @@ def verify_order_item(order_id: int, category_id: int, verification: ItemVerific
 
         data_to_insert = (verification.verified_count, order_id, category_id)
 
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Item not found for this order")
+    
         cursor.execute(command, data_to_insert)
 
         conn.commit()
