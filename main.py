@@ -70,7 +70,7 @@ def get_order_items(order_id: int):
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
 
-        command = '''SELECT item_categories.category_name, order_items.initial_count
+        command = '''SELECT item_categories.category_name, order_items.initial_count, order_items.verified_count
         FROM order_items
         JOIN item_categories ON order_items.category_id = item_categories.category_id
         WHERE order_items.order_id = ?'''
@@ -82,11 +82,14 @@ def get_order_items(order_id: int):
         
     formatted_items = []
     for row in raw_items:
-        item_and_count = {"category": row[0], "count": row[1]}
+        item_and_count = {
+            "category": row[0], 
+            "initial_count": row[1], 
+            "verified_count": row[2]
+        }
         formatted_items.append(item_and_count)
 
     return {"order_id": order_id, "items": formatted_items}
-
 
 
 @app.patch("/orders/{order_id}/status")
