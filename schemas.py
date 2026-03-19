@@ -17,3 +17,7 @@ class OrderItemCreate(BaseModel):
     order_id: int
     category_id: int
     initial_count: int
+
+
+class OrderStatusUpdate(BaseModel):
+    status: Literal['RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED']
