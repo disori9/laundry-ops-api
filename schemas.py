@@ -21,3 +21,8 @@ class OrderItemCreate(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: Literal['RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED']
+
+
+class ItemVerification(BaseModel):
+    verified_count: int
+    

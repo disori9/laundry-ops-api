@@ -103,3 +103,19 @@ def update_order_status(order_id: int, status_update: OrderStatusUpdate):
         conn.commit()
     
     return {"message": f"Successful change of status to {status_update.status}", "status": status_update.status}
+
+
+@app.patch("/orders/{order_id}/items/{category_id}")
+def verify_order_item(order_id: int, category_id: int, verification: ItemVerification):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        command = 'UPDATE order_items SET verified_count = ? WHERE order_id = ? AND category_id = ?'
+
+        data_to_insert = (verification.verified_count, order_id, category_id)
+
+        cursor.execute(command, data_to_insert)
+
+        conn.commit()
+
+    return {"message": f"Order {order_id} category {category_id} verified count updated to {verification.verified_count}"}
