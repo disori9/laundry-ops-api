@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
+from schemas import *
+from typing import Optional
 import sqlite3
 import math
-from schemas import *
+
 
 app = FastAPI()
 
@@ -125,3 +127,34 @@ def verify_order_item(order_id: int, category_id: int, verification: ItemVerific
         conn.commit()
 
     return {"message": f"Order {order_id} category {category_id} verified count updated to {verification.verified_count}"}
+
+
+@app.get("/orders")
+def get_all_orders(status: Optional[str] = None):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        if status:
+            command = 'SELECT order_id, weight_kg, total_price, payment_status, status FROM orders WHERE status = ?'
+            
+            cursor.execute(command, (status,))
+
+        else:
+            command = 'SELECT order_id, weight_kg, total_price, payment_status, status FROM orders'
+
+            cursor.execute(command)
+        
+        raw_orders = cursor.fetchall()
+    
+    formatted_orders = []
+    for row in raw_orders:
+        item_and_count = {
+            "order_id": row[0], 
+            "weight_kg": row[1], 
+            "total_price": row[2],
+            "payment_status": row[3],
+            "status": row[4]
+        }
+        formatted_orders.append(item_and_count)
+    
+    return {"orders": formatted_orders}
