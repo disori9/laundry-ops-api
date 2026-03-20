@@ -28,25 +28,56 @@ def create_customer(customer: CustomerCreate):
     return {"message": "Customer created successfully", "name": customer.cust_name, "number": customer.number}
 
 
+def get_load_price(weight: float) -> int:
+    """Calculates the price for a SINGLE machine load."""
+    if weight <= 0: return 0
+    if weight <= 6.0: return 170
+    elif weight <= 6.25: return 175
+    elif weight <= 6.50: return 180
+    elif weight <= 6.75: return 185
+    elif weight <= 7.00: return 190
+    elif weight <= 7.25: return 200  # Irregular jump
+    elif weight <= 7.50: return 205
+    elif weight <= 7.75: return 210
+    elif weight <= 8.00: return 220
+    elif weight <= 8.25: return 225  # Irregular jump
+    else: return 235                 # Covers up to the 8.5kg max limit
+
+
 @app.post("/orders")
 def create_order(order: OrderCreate):
-    kg_per_order = 6
-    load = math.ceil(order.weight_kg / kg_per_order)
-    total_price = 165 * load
+    total_price = 0
+    comforter_price = 210
+    total_loads = order.comforter_count
+    total_price = order.comforter_count * comforter_price
 
+    # Basically, because an order is halved if it reaches above 8.5kg, we use math.ceil to get the total loads in an order
+    # We need to have an if else section because a customer might bring only comforters
+    if order.weight_kg:
+        clothes_loads = math.ceil(order.weight_kg / 8.5)
+        weight_per_load = order.weight_kg / clothes_loads
+        total_price += get_load_price(weight_per_load) * clothes_loads
+        total_loads += clothes_loads
+
+    # --- DATABASE INSERT ---
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
-
+        
+        # We don't need to save comforter_count or total_loads to the DB just yet, 
+        # we just needed them to calculate the correct total_price!
         command = 'INSERT INTO orders(weight_kg, total_price, payment_status, status, customer_id) VALUES (?, ?, ?, ?, ?)'
         data_to_insert = (order.weight_kg, total_price, order.payment_status, 'RECEIVED', order.customer_id)
-
+        
         cursor.execute(command, data_to_insert)
-
         new_order_id = cursor.lastrowid
-
         conn.commit()
 
-    return {"message": f"Order created successfully, total price: {total_price}", "order_id": new_order_id, "total_price": total_price}
+    return {
+        "message": "Order created successfully", 
+        "order_id": new_order_id, 
+        "total_price": total_price,
+        "calculated_loads": total_loads
+    }
 
 
 @app.post("/order-items")

@@ -11,6 +11,7 @@ class OrderCreate(BaseModel):
     customer_id: int
     weight_kg: float
     payment_status: Literal['PAID', 'UNPAID']
+    comforter_count: int=0
 
 
 class OrderItemCreate(BaseModel):
