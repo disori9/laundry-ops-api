@@ -63,10 +63,8 @@ def create_order(order: OrderCreate):
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
         
-        # We don't need to save comforter_count or total_loads to the DB just yet, 
-        # we just needed them to calculate the correct total_price!
-        command = 'INSERT INTO orders(weight_kg, total_price, payment_status, status, customer_id) VALUES (?, ?, ?, ?, ?)'
-        data_to_insert = (order.weight_kg, total_price, order.payment_status, 'RECEIVED', order.customer_id)
+        command = 'INSERT INTO orders(weight_kg, total_price, payment_status, status, customer_id, total_loads) VALUES (?, ?, ?, ?, ?, ?)'
+        data_to_insert = (order.weight_kg, total_price, order.payment_status, 'RECEIVED', order.customer_id, total_loads)
         
         cursor.execute(command, data_to_insert)
         new_order_id = cursor.lastrowid
