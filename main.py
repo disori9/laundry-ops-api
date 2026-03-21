@@ -128,13 +128,19 @@ def update_order_status(order_id: int, status_update: OrderStatusUpdate):
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
 
-        command = 'UPDATE orders SET status = ? WHERE order_id = ?'
+        fetch_active_washing = 'SELECT SUM(total_loads) FROM orders WHERE status = ?'
+        cursor.execute(fetch_active_washing, ('WASHING',))
+        result = cursor.fetchone()
+        current_loads = result or 0
 
-        data_to_insert = (status_update.status, order_id)
+        if current_loads < 3:
+            command = 'UPDATE orders SET status = ? WHERE order_id = ?'
 
-        cursor.execute(command, data_to_insert)
+            data_to_insert = (status_update.status, order_id)
 
-        conn.commit()
+            cursor.execute(command, data_to_insert)
+
+            conn.commit()
     
     return {"message": f"Successful change of status to {status_update.status}", "status": status_update.status}
 

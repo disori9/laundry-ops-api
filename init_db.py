@@ -18,13 +18,21 @@ cursor.execute('''
             weight_kg REAL NOT NULL,
             total_price INT NOT NULL,
             payment_status TEXT CHECK(payment_status IN ('PAID', 'UNPAID')),
-            status TEXT CHECK(status IN ('RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED')),
             customer_id INTEGER,
             total_loads INTEGER NOT NULL,
             FOREIGN KEY (customer_id) REFERENCES customers (customer_id)
                 ON DELETE SET NULL
         );
 ''')
+
+cursor.execute('''
+        CREATE TABLE order_loads (
+               load_id INTEGER PRIMARY KEY AUTOINCREMENT,
+               order_id INTEGER,
+               status TEXT CHECK(status IN ('RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED')),
+               FOREIGN KEY (order_id) REFERENCES orders (order_id)
+                       ON DELETE CASCADE)
+               ''')
 
 cursor.execute('''
         CREATE TABLE item_categories (
