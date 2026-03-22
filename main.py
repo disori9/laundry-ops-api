@@ -131,28 +131,6 @@ def get_order_items(order_id: int):
     return {"order_id": order_id, "items": formatted_items}
 
 
-@app.patch("/orders/{order_id}/status")
-def update_order_status(order_id: int, status_update: OrderStatusUpdate):
-    with sqlite3.connect('laundry.db') as conn:
-        cursor = conn.cursor()
-
-        fetch_active_washing = 'SELECT SUM(total_loads) FROM orders WHERE status = ?'
-        cursor.execute(fetch_active_washing, ('WASHING',))
-        result = cursor.fetchone()
-        current_loads = result or 0
-
-        if current_loads < 3:
-            command = 'UPDATE orders SET status = ? WHERE order_id = ?'
-
-            data_to_insert = (status_update.status, order_id)
-
-            cursor.execute(command, data_to_insert)
-
-            conn.commit()
-    
-    return {"message": f"Successful change of status to {status_update.status}", "status": status_update.status}
-
-
 @app.patch("/orders/{order_id}/items/{category_id}")
 def verify_order_item(order_id: int, category_id: int, verification: ItemVerification):
     with sqlite3.connect('laundry.db') as conn:
@@ -203,3 +181,32 @@ def get_all_orders(status: Optional[str] = None):
     return {"orders": formatted_orders}
 
 
+@app.patch("/loads/{load_id}/status")
+def update_load_status(load_id: int, status_update: LoadStatusUpdate):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        # Checks the current count of washing machine/dryer used and if it's currently at 3, raise an error, otherwise, update the status
+        if status_update.status == 'WASHING':
+            command = 'SELECT count(load_id) FROM order_loads WHERE status = ?'
+            cursor.execute(command, ('WASHING',))
+            currently_washing = cursor.fetchone()
+        
+            if currently_washing[0] >= 3:
+                raise HTTPException(status_code=400, detail="No washing machines available.")
+            
+        if status_update.status == 'DRYING':
+            command = 'SELECT count(load_id) FROM order_loads WHERE status = ?'
+            cursor.execute(command, ('DRYING',))
+            currently_drying = cursor.fetchone()
+        
+            if currently_drying[0] >= 3:
+                raise HTTPException(status_code=400, detail="No dryer available.")
+
+
+        command = 'UPDATE order_loads SET status = ? WHERE load_id = ?'
+        data_to_insert = (status_update.status, load_id)
+        cursor.execute(command, data_to_insert)
+        conn.commit()
+    
+    return {"message": f"Load status updated. ID: {load_id} to {status_update.status}"}
