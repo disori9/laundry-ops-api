@@ -63,11 +63,19 @@ def create_order(order: OrderCreate):
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
         
-        command = 'INSERT INTO orders(weight_kg, total_price, payment_status, status, customer_id, total_loads) VALUES (?, ?, ?, ?, ?, ?)'
-        data_to_insert = (order.weight_kg, total_price, order.payment_status, 'RECEIVED', order.customer_id, total_loads)
+        command = 'INSERT INTO orders(weight_kg, total_price, payment_status, customer_id, total_loads) VALUES (?, ?, ?, ?, ?)'
+        data_to_insert = (order.weight_kg, total_price, order.payment_status, order.customer_id, total_loads)
         
         cursor.execute(command, data_to_insert)
         new_order_id = cursor.lastrowid
+        
+        loads_data = []
+        for n in range(total_loads):
+            loads_data.append((new_order_id, 'RECEIVED'))
+        
+        command = 'INSERT INTO order_loads(order_id, status) VALUES (?, ?)'
+        cursor.executemany(command, loads_data)
+
         conn.commit()
 
     return {
@@ -193,3 +201,5 @@ def get_all_orders(status: Optional[str] = None):
         formatted_orders.append(item_and_count)
     
     return {"orders": formatted_orders}
+
+
