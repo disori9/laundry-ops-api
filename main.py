@@ -210,3 +210,40 @@ def update_load_status(load_id: int, status_update: LoadStatusUpdate):
         conn.commit()
     
     return {"message": f"Load status updated. ID: {load_id} to {status_update.status}"}
+
+
+@app.get("/orders/{order_id}")
+def get_order_ticket(order_id: int):
+    order_ticket = {}
+
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+
+        command = 'SELECT order_id, weight_kg, total_price, payment_status, customer_id FROM orders WHERE order_id = ?'
+
+        cursor.execute(command, (order_id,))
+        results = cursor.fetchone()
+
+        if results:
+            order_ticket["order_id"] = results[0]
+            order_ticket["weight_kg"] = results[1]
+            order_ticket["total_price"] = results[2]
+            order_ticket["payment_status"] = results[3]
+            order_ticket["customer_id"] = results[4]
+        else:
+            raise HTTPException(status_code=404, detail="Order doesn't exist")
+        
+        command = 'SELECT load_id, status FROM order_loads WHERE order_id = ?'
+        cursor.execute(command, (order_id,))
+        loads = cursor.fetchall()
+        order_ticket["baskets"] = []
+        
+
+        for load in loads:
+            load_detail = {}
+            load_detail["load_id"] = load[0]
+            load_detail["status"] = load[1]
+            order_ticket["baskets"].append(load_detail)
+            
+    
+    return order_ticket
