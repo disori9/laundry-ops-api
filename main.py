@@ -137,31 +137,30 @@ def verify_order_item(order_id: int, category_id: int, verification: ItemVerific
         cursor = conn.cursor()
 
         command = 'UPDATE order_items SET verified_count = ? WHERE order_id = ? AND category_id = ?'
-
         data_to_insert = (verification.verified_count, order_id, category_id)
+
+        cursor.execute(command, data_to_insert)
 
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Item not found for this order")
-    
-        cursor.execute(command, data_to_insert)
-
+        
         conn.commit()
 
     return {"message": f"Order {order_id} category {category_id} verified count updated to {verification.verified_count}"}
 
 
 @app.get("/orders")
-def get_all_orders(status: Optional[str] = None):
+def get_all_orders(payment_status: Optional[str] = None):
     with sqlite3.connect('laundry.db') as conn:
         cursor = conn.cursor()
 
-        if status:
-            command = 'SELECT order_id, weight_kg, total_price, payment_status, status FROM orders WHERE status = ?'
+        if payment_status:
+            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads FROM orders WHERE payment_status = ?'
             
-            cursor.execute(command, (status,))
+            cursor.execute(command, (payment_status,))
 
         else:
-            command = 'SELECT order_id, weight_kg, total_price, payment_status, status FROM orders'
+            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads FROM orders'
 
             cursor.execute(command)
         
@@ -173,8 +172,8 @@ def get_all_orders(status: Optional[str] = None):
             "order_id": row[0], 
             "weight_kg": row[1], 
             "total_price": row[2],
-            "payment_status": row[3],
-            "status": row[4]
+            "customer_id": row[3],
+            "total_loads": row[4]
         }
         formatted_orders.append(item_and_count)
     
@@ -245,5 +244,6 @@ def get_order_ticket(order_id: int):
             load_detail["status"] = load[1]
             order_ticket["baskets"].append(load_detail)
             
-    
     return order_ticket
+
+
