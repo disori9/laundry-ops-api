@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>New Drop-off | Laundry Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .summary-box {
+            background: #F0FDF4; border: 2px solid #22C55E;
+            border-radius: 8px; padding: 20px; text-align: center;
+            margin-top: 20px; display: none; 
+        }
+        .summary-price {
+            font-size: 2.5rem; font-weight: bold; color: #15803D; margin: 10px 0;
+        }
+        .visualizer-container {
+            margin-top: 20px; padding: 15px; background: #F8FAFC;
+            border: 1px solid var(--border); border-radius: 8px; min-height: 60px;
+        }
+        .basket-bar-bg {
+            width: 100%; height: 12px; background: #E2E8F0;
+            border-radius: 6px; overflow: hidden; margin-top: 4px; margin-bottom: 12px;
+        }
+        .basket-bar-fill { height: 100%; background: var(--primary); transition: width 0.3s ease; }
+        .basket-bar-fill.comforter { background: #8B5CF6; }
+        
+        .item-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px;
+        }
+        .item-input label {
+            font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px;
+        }
+        .item-input input {
+            padding: 10px; text-align: center; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="index.html" class="nav-item">🧺 Shop Floor</a>
+        <a href="order.html" class="nav-item active">➕ Drop-off</a>
+        <a href="customer.html" class="nav-item">👤 Customers</a>
+        <a href="owner.html" class="nav-item">🔒 Owner</a>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">New Laundry Drop-off</h1>
+
+        <div class="card" id="orderFormCard">
+            
+            <div class="form-group">
+                <label>1. Select Customer</label>
+                <select id="orderCustomer">
+                    <option value="" disabled selected>Loading customers...</option>
+                </select>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+            <div class="form-group">
+                <label>2. Laundry Weight (kg)</label>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">Type decimals (5.5) or fractions (5 1/2)</div>
+                <input type="text" id="orderWeight" placeholder="e.g. 5, 5.5, or 5 1/2" oninput="updateEstimator()">
+                <div id="parsedWeightDisplay" style="font-size: 0.8rem; color: var(--primary); font-weight: bold; margin-top: 5px; display: none;"></div>
+            </div>
+
+            <div class="form-group">
+                <label>3. Comforters (Quantity)</label>
+                <input type="number" id="orderComforters" placeholder="0" oninput="updateEstimator()">
+            </div>
+
+            <div id="loadVisualizer" class="visualizer-container">
+                <div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Enter weight or comforters to see estimated loads & price.</div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+            <div class="form-group">
+                <label>4. Item Checklist <span style="color: var(--danger);">*Required for Clothes</span></label>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Enter the exact quantity. (Comforters entered above are tracked automatically!)</div>
+                
+                <div class="item-grid">
+                    <div class="item-input">
+                        <label>Shirts / Tops</label>
+                        <input type="number" id="cat_1" placeholder="0" min="0">
+                    </div>
+                    <div class="item-input">
+                        <label>Pants / Bottoms</label>
+                        <input type="number" id="cat_2" placeholder="0" min="0">
+                    </div>
+                    <div class="item-input">
+                        <label>Undergarments</label>
+                        <input type="number" id="cat_3" placeholder="0" min="0">
+                    </div>
+                    <div class="item-input">
+                        <label>Towels / Beddings</label>
+                        <input type="number" id="cat_4" placeholder="0" min="0">
+                    </div>
+                    <div class="item-input">
+                        <label>Others</label>
+                        <input type="number" id="cat_5" placeholder="0" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>5. Payment Status</label>
+                <select id="orderPayment">
+                    <option value="UNPAID" selected>UNPAID (Pay Later)</option>
+                    <option value="PAID">PAID (Paid Now)</option>
+                </select>
+            </div>
+
+            <button type="button" id="submitBtn" class="btn" style="margin-top: 30px;" onclick="createOrder(event)">Calculate & Create Order</button>
+        </div>
+
+        <div class="summary-box" id="successReceipt">
+            <h2 style="color: #15803D; margin-top: 0;">✅ Order Created!</h2>
+            <p style="color: var(--text-muted); font-size: 1.1rem;">Total due from customer:</p>
+            <div class="summary-price">₱<span id="receiptPrice">0</span></div>
+            <p style="font-size: 1.1rem; font-weight: bold;">Total Size: <span id="receiptLoads" style="color: var(--primary);">0</span> Baskets</p>
+            <button type="button" class="btn" style="margin-top: 20px;" onclick="resetForm()">Start Another Drop-off</button>
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000";
+
+        // --- NEW INDESTRUCTIBLE FRACTION TRANSLATOR ---
+        function parseWeight(inputStr) {
+            try {
+                if (!inputStr) return 0;
+                
+                // 1. Remove any weird characters (keep only numbers, spaces, dots, slashes)
+                let cleaned = inputStr.replace(/[^0-9\s\/.]/g, '').trim();
+                if (!cleaned) return 0;
+                
+                // 2. Find a number, a space, and a fraction (like "5 1/2") and turn the space into a "+"
+                cleaned = cleaned.replace(/(\d+)\s+(\d+\/\d+)/g, '$1+$2');
+                
+                // 3. Safely calculate the math equation (e.g. calculates 5+1/2 perfectly)
+                let val = Function('"use strict";return (' + cleaned + ')')();
+                return val || 0;
+            } catch (e) {
+                return 0; 
+            }
+        }
+
+        // --- MIRRORS YOUR EXACT PYTHON PRICING DATA ---
+        function getLoadPrice(weight) {
+            if (weight <= 0) return 0;
+            if (weight <= 6.0) return 170;
+            if (weight <= 6.25) return 175;
+            if (weight <= 6.50) return 180;
+            if (weight <= 6.75) return 185;
+            if (weight <= 7.00) return 190;
+            if (weight <= 7.25) return 200; 
+            if (weight <= 7.50) return 205;
+            if (weight <= 7.75) return 210;
+            if (weight <= 8.00) return 220;
+            if (weight <= 8.25) return 225; 
+            return 235; 
+        }
+
+        async function loadDropdown() {
+            try {
+                const res = await fetch(`${API_URL}/customers`);
+                const data = await res.json();
+                const select = document.getElementById("orderCustomer");
+                select.innerHTML = '<option value="" disabled selected>-- Select a Customer --</option>'; 
+                data.customers.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.customer_id;
+                    opt.textContent = `${c.customer_name} (${c.number})`;
+                    select.appendChild(opt);
+                });
+            } catch (error) {
+                document.getElementById("orderCustomer").innerHTML = '<option value="" disabled>Error loading customers</option>';
+            }
+        }
+
+        function updateEstimator() {
+            const rawWeightStr = document.getElementById("orderWeight").value;
+            const weight = parseWeight(rawWeightStr); 
+            const comforters = parseInt(document.getElementById("orderComforters").value) || 0;
+            const container = document.getElementById("loadVisualizer");
+            const parsedDisplay = document.getElementById("parsedWeightDisplay");
+
+            if (rawWeightStr.includes('/')) {
+                parsedDisplay.style.display = "block";
+                parsedDisplay.textContent = `Translates to: ${weight.toFixed(2)} kg`;
+            } else {
+                parsedDisplay.style.display = "none";
+            }
+
+            if (weight === 0 && comforters === 0) {
+                container.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Enter weight or comforters to see estimated loads & price.</div>`;
+                return;
+            }
+
+            let html = '<strong style="font-size:0.95rem; margin-bottom:12px; display:block; color:var(--primary);">Estimated Machine Loads:</strong>';
+            let loadCount = 1;
+            let estimatedTotal = 0;
+
+            if (weight > 0) {
+                const clothesLoads = Math.ceil(weight / 8.5);
+                // SPLIT PERFECTLY EVENLY (Matches Python Logic)
+                const weightPerLoad = weight / clothesLoads;
+                const pricePerLoad = getLoadPrice(weightPerLoad);
+                
+                estimatedTotal += (pricePerLoad * clothesLoads);
+
+                for (let i = 1; i <= clothesLoads; i++) {
+                    let fillPercent = (weightPerLoad / 8.5) * 100;
+                    
+                    let fraction = "Full";
+                    if (fillPercent <= 30) fraction = "~1/4 Full";
+                    else if (fillPercent <= 55) fraction = "~1/2 Full";
+                    else if (fillPercent <= 80) fraction = "~3/4 Full";
+                    else fraction = "Almost Full";
+
+                    if (fillPercent >= 98) fraction = "Full";
+
+                    let label = `${fraction} (${weightPerLoad.toFixed(2)} kg)`;
+
+                    html += `
+                        <div style="font-size:0.85rem; display:flex; justify-content:space-between; margin-bottom: 2px;">
+                            <strong>Load ${loadCount} (Clothes)</strong>
+                            <span style="color:var(--text-muted);">${label}</span>
+                        </div>
+                        <div class="basket-bar-bg"><div class="basket-bar-fill" style="width: ${fillPercent}%;"></div></div>
+                    `;
+                    loadCount++;
+                }
+            }
+
+            if (comforters > 0) {
+                estimatedTotal += (comforters * 210); 
+                for (let i = 1; i <= comforters; i++) {
+                    html += `
+                        <div style="font-size:0.85rem; display:flex; justify-content:space-between; margin-bottom: 2px;">
+                            <strong>Load ${loadCount} (Comforter)</strong>
+                            <span style="color:var(--text-muted);">1 Full Machine</span>
+                        </div>
+                        <div class="basket-bar-bg"><div class="basket-bar-fill comforter" style="width: 100%;"></div></div>
+                    `;
+                    loadCount++;
+                }
+            }
+
+            html += `
+                <div style="margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 10px; text-align: right; font-size: 1.2rem;">
+                    <strong>Est. Total: <span style="color: #15803D;">₱${estimatedTotal}</span></strong>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        async function createOrder(event) {
+            // STOP THE BROWSER FROM RELOADING!
+            if (event) event.preventDefault(); 
+
+            const custId = document.getElementById("orderCustomer").value;
+            const weight = parseWeight(document.getElementById("orderWeight").value);
+            const comforters = parseInt(document.getElementById("orderComforters").value) || 0;
+            const payment = document.getElementById("orderPayment").value;
+            const btn = document.getElementById("submitBtn");
+
+            if (!custId) return alert("Please select a customer!");
+            if (weight === 0 && comforters === 0) return alert("Please enter either a weight or a comforter count!");
+
+            const itemsToSubmit = [];
+            
+            const categories = [
+                { id: 1, element: 'cat_1' },
+                { id: 2, element: 'cat_2' },
+                { id: 3, element: 'cat_3' },
+                { id: 4, element: 'cat_4' },
+                { id: 5, element: 'cat_5' }
+            ];
+
+            let totalItemsCount = 0;
+            categories.forEach(cat => {
+                const val = parseInt(document.getElementById(cat.element).value) || 0;
+                if (val > 0) {
+                    itemsToSubmit.push({ category_id: cat.id, initial_count: val });
+                    totalItemsCount += val;
+                }
+            });
+
+            if (comforters > 0) {
+                itemsToSubmit.push({ category_id: 6, initial_count: comforters });
+            }
+
+            if (weight > 0 && totalItemsCount === 0) {
+                return alert("Since you entered clothes weight, you must fill out the Item Checklist!");
+            }
+
+            btn.textContent = "Processing...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_URL}/orders`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        customer_id: parseInt(custId),
+                        weight_kg: weight,
+                        comforter_count: comforters,
+                        payment_status: payment
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const newOrderId = data.order_id; 
+
+                    for (const item of itemsToSubmit) {
+                        await fetch(`${API_URL}/order-items`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                order_id: newOrderId,
+                                category_id: item.category_id,
+                                initial_count: item.initial_count
+                            })
+                        });
+                    }
+                    
+                    btn.textContent = "✅ Order Created!";
+                    btn.style.backgroundColor = "#10B981"; 
+                    
+                    // We successfully pause because the page doesn't reload anymore!
+                    setTimeout(() => {
+                        document.getElementById("orderFormCard").style.display = "none";
+                        document.getElementById("successReceipt").style.display = "block";
+                        
+                        document.getElementById("receiptPrice").textContent = data.total_price;
+                        document.getElementById("receiptLoads").textContent = data.calculated_loads;
+                        
+                        btn.textContent = "Calculate & Create Order";
+                        btn.style.backgroundColor = "var(--primary)";
+                        btn.disabled = false;
+                    }, 1500);
+                    
+                } else {
+                    const errorData = await res.json();
+                    alert(`Error: ${errorData.detail}`);
+                    btn.textContent = "Calculate & Create Order";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                alert("Could not connect to the API.");
+                btn.textContent = "Calculate & Create Order";
+                btn.disabled = false;
+            }
+        }
+
+        function resetForm() {
+            document.getElementById("orderWeight").value = "";
+            document.getElementById("orderComforters").value = "";
+            document.getElementById("orderCustomer").value = "";
+            document.getElementById("orderPayment").value = "UNPAID";
+            
+            document.getElementById("cat_1").value = "";
+            document.getElementById("cat_2").value = "";
+            document.getElementById("cat_3").value = "";
+            document.getElementById("cat_4").value = "";
+            document.getElementById("cat_5").value = "";
+            
+            updateEstimator();
+            document.getElementById("parsedWeightDisplay").style.display = "none";
+            document.getElementById("successReceipt").style.display = "none";
+            document.getElementById("orderFormCard").style.display = "block";
+        }
+
+        loadDropdown();
+    </script>
+</body>
+</html>
