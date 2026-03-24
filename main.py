@@ -252,6 +252,18 @@ def get_order_ticket(order_id: int):
             load_detail["status"] = load[1]
             load_detail["machine_no"] = load[2]
             order_ticket["baskets"].append(load_detail)
+
+        cursor.execute('SELECT category_id, initial_count, verified_count FROM order_items WHERE order_id = ?', (order_id,))
+        items = cursor.fetchall()
+        
+        order_ticket["items"] = []
+        for item in items:
+            item_detail = {
+                "category_id": item[0],
+                "count": item[1],
+                "verified_count": int(item[2] if item is not None else 0)
+            }
+            order_ticket["items"].append(item_detail)
             
     return order_ticket
 

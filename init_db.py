@@ -48,7 +48,7 @@ cursor.execute('''
             items_id INTEGER PRIMARY KEY AUTOINCREMENT,
             category_id INTEGER,
             initial_count INTEGER NOT NULL,
-            verified_count INTEGER,
+            verified_count INTEGER DEFAULT 0,
             order_id INTEGER,
             FOREIGN KEY (order_id) REFERENCES orders (order_id) ON DELETE CASCADE,
             FOREIGN KEY (category_id) REFERENCES item_categories (category_id)
