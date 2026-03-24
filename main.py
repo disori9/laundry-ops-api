@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from schemas import *
 from typing import Optional
 import sqlite3
@@ -6,6 +7,14 @@ import math
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allows any frontend to connect (good for local testing)
+    allow_credentials=True,
+    allow_methods=["*"], # Allows GET, POST, PATCH, etc.
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
