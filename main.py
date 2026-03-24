@@ -247,3 +247,25 @@ def get_order_ticket(order_id: int):
     return order_ticket
 
 
+@app.get("/customers")
+def get_all_customers():
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+        
+        command = 'SELECT customer_id, cust_name, number FROM customers'
+
+        cursor.execute(command)
+
+        customers = cursor.fetchall()
+
+        formatted_customers = []
+        for customer in customers:
+            customer_data = {
+                "customer_id": customer[0],
+                "customer_name": customer[1],
+                "number": customer[2]
+            }
+            formatted_customers.append(customer_data)
+
+    
+    return {"customers": formatted_customers}
