@@ -20,6 +20,7 @@ cursor.execute('''
             payment_status TEXT CHECK(payment_status IN ('PAID', 'UNPAID')),
             customer_id INTEGER,
             total_loads INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (customer_id) REFERENCES customers (customer_id)
                 ON DELETE SET NULL
         );
