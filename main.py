@@ -195,25 +195,23 @@ def update_load_status(load_id: int, status_update: LoadStatusUpdate):
         cursor = conn.cursor()
 
         # Checks the current count of washing machine/dryer used and if it's currently at 3, raise an error, otherwise, update the status
-        if status_update.status == 'WASHING':
-            command = 'SELECT count(load_id) FROM order_loads WHERE status = ?'
-            cursor.execute(command, ('WASHING',))
-            currently_washing = cursor.fetchone()
-        
-            if currently_washing[0] >= 3:
-                raise HTTPException(status_code=400, detail="No washing machines available.")
+        if status_update.status == 'WASHING' or status_update.status == 'DRYING':
+            if status_update.machine_no is None:
+                raise HTTPException(status_code=400, detail="Machine number required.")
             
-        if status_update.status == 'DRYING':
-            command = 'SELECT count(load_id) FROM order_loads WHERE status = ?'
-            cursor.execute(command, ('DRYING',))
-            currently_drying = cursor.fetchone()
-        
-            if currently_drying[0] >= 3:
-                raise HTTPException(status_code=400, detail="No dryer available.")
+            if status_update.machine_no not in [1, 2, 3]:
+                raise HTTPException(status_code=400, detail="Invalid machine number. Must be 1, 2, or 3.")
+            
+            command = 'SELECT count(load_id) FROM order_loads WHERE status = ? AND machine_no = ?'
+            cursor.execute(command, (status_update.status, status_update.machine_no))
+            result = cursor.fetchone()
+
+            if result[0] >= 1:
+                raise HTTPException(status_code=400, detail="Machine in use.")
 
 
-        command = 'UPDATE order_loads SET status = ? WHERE load_id = ?'
-        data_to_insert = (status_update.status, load_id)
+        command = 'UPDATE order_loads SET status = ?, machine_no = ? WHERE load_id = ?'
+        data_to_insert = (status_update.status, status_update.machine_no, load_id)
         cursor.execute(command, data_to_insert)
         conn.commit()
     
