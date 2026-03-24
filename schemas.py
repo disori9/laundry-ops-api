@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 
 
 class CustomerCreate(BaseModel):
@@ -22,6 +22,7 @@ class OrderItemCreate(BaseModel):
 
 class LoadStatusUpdate(BaseModel):
     status: Literal['RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED']
+    machine_no: Optional[int] = None
 
 
 class ItemVerification(BaseModel):

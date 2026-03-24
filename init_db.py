@@ -30,6 +30,7 @@ cursor.execute('''
                load_id INTEGER PRIMARY KEY AUTOINCREMENT,
                order_id INTEGER,
                status TEXT CHECK(status IN ('RECEIVED', 'WASHING', 'DRYING', 'FOLDING', 'BAGGED', 'COMPLETED')),
+               machine_no INTEGER,
                FOREIGN KEY (order_id) REFERENCES orders (order_id)
                        ON DELETE CASCADE)
                ''')
