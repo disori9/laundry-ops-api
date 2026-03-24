@@ -239,7 +239,7 @@ def get_order_ticket(order_id: int):
         else:
             raise HTTPException(status_code=404, detail="Order doesn't exist")
         
-        command = 'SELECT load_id, status FROM order_loads WHERE order_id = ?'
+        command = 'SELECT load_id, status, machine_no FROM order_loads WHERE order_id = ?'
         cursor.execute(command, (order_id,))
         loads = cursor.fetchall()
         order_ticket["baskets"] = []
@@ -249,6 +249,7 @@ def get_order_ticket(order_id: int):
             load_detail = {}
             load_detail["load_id"] = load[0]
             load_detail["status"] = load[1]
+            load_detail["machine_no"] = load[2]
             order_ticket["baskets"].append(load_detail)
             
     return order_ticket

@@ -149,3 +149,23 @@ input:focus, select:focus {
         gap: 20px;
     }
 }
+
+/* Small, clean buttons for the Shop Floor */
+.action-btn {
+    background-color: #EEF2FF;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 5px;
+    margin-top: 8px;
+}
+
+.action-btn:hover, .action-btn:active {
+    background-color: var(--primary);
+    color: white;
+}

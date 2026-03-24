@@ -3,43 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shop Floor | Laundry Hub</title>
+    <title>Shop Floor</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Spacing Fixes */
+        h2 { margin-top: 30px; margin-bottom: 15px; color: var(--text-main); }
+        
+        .machine-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        .machine-slot {
+            background: var(--surface);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            min-height: 120px;
+        }
+        .machine-title {
+            font-weight: bold;
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .occupied {
+            border: 2px solid var(--primary);
+            background: #EEF2FF;
+        }
+        .basket-sticker {
+            background: white;
+            border: 1px solid var(--primary);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 10px;
+            text-align: left; 
+        }
+        
+        /* UPDATED: Soft Badges */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        /* Card Layout Fixes using Flexbox */
+        .floor-card-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .action-group {
+            display: flex;
+            flex-wrap: wrap; /* UPDATED: Safely wraps long buttons */
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .machine-grid { grid-template-columns: 1fr; }
+            .floor-card-layout { flex-direction: column; align-items: flex-start; }
+            .action-group { margin-top: 10px; }
+        }
+    </style>
 </head>
 <body>
-
     <nav class="navbar">
         <a href="index.html" class="nav-item active">🧺 Shop Floor</a>
-        <a href="order.html" class="nav-item">➕ New Drop-off</a>
+        <a href="order.html" class="nav-item">➕ Drop-off</a>
         <a href="customer.html" class="nav-item">👤 Customers</a>
         <a href="owner.html" class="nav-item">🔒 Owner</a>
     </nav>
 
     <div class="container">
-        <h1 class="page-title">Active Baskets (Shop Floor)</h1>
+        <h1 class="page-title">Live Shop Floor</h1>
 
-        <div class="grid-2-col">
-            
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <strong style="font-size: 1.2rem;">Order #12</strong>
-                    <span style="background: #FEF08A; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.8rem;">WASHING</span>
-                </div>
-                <p style="color: var(--text-muted); margin-bottom: 15px;">Basket ID: 45 | Juan Dela Cruz</p>
-                <button class="btn">Move to Drying</button>
-            </div>
-
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <strong style="font-size: 1.2rem;">Order #14</strong>
-                    <span style="background: #BFDBFE; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.8rem;">DRYING</span>
-                </div>
-                <p style="color: var(--text-muted); margin-bottom: 15px;">Basket ID: 48 | Maria Santos</p>
-                <button class="btn">Move to Folding</button>
-            </div>
-
+        <h2>Washing Machines</h2>
+        <div class="machine-grid">
+            <div id="washer-1" class="machine-slot"><div class="machine-title">Washer 1</div><span style="color:#aaa">Empty</span></div>
+            <div id="washer-2" class="machine-slot"><div class="machine-title">Washer 2</div><span style="color:#aaa">Empty</span></div>
+            <div id="washer-3" class="machine-slot"><div class="machine-title">Washer 3</div><span style="color:#aaa">Empty</span></div>
         </div>
+
+        <h2>Dryers</h2>
+        <div class="machine-grid">
+            <div id="dryer-1" class="machine-slot"><div class="machine-title">Dryer 1</div><span style="color:#aaa">Empty</span></div>
+            <div id="dryer-2" class="machine-slot"><div class="machine-title">Dryer 2</div><span style="color:#aaa">Empty</span></div>
+            <div id="dryer-3" class="machine-slot"><div class="machine-title">Dryer 3</div><span style="color:#aaa">Empty</span></div>
+        </div>
+
+        <h2>Waiting on Floor</h2>
+        <div id="waiting-baskets" style="display: flex; flex-direction: column; gap: 15px;">
+            </div>
     </div>
 
+    <script>
+        const API_URL = "http://localhost:8000";
+
+        async function loadShopFloor() {
+            let customerMap = {};
+            try {
+                const custRes = await fetch(`${API_URL}/customers`);
+                const custData = await custRes.json();
+                custData.customers.forEach(c => {
+                    customerMap[c.customer_id] = c;
+                });
+            } catch (e) { console.error("Could not load customers."); }
+
+            const ordersRes = await fetch(`${API_URL}/orders`);
+            const ordersData = await ordersRes.json();
+            
+            document.getElementById("waiting-baskets").innerHTML = "";
+            for(let i=1; i<=3; i++) {
+                document.getElementById(`washer-${i}`).className = "machine-slot";
+                document.getElementById(`washer-${i}`).innerHTML = `<div class="machine-title">Washer ${i}</div><span style="color:#aaa">Empty</span>`;
+                document.getElementById(`dryer-${i}`).className = "machine-slot";
+                document.getElementById(`dryer-${i}`).innerHTML = `<div class="machine-title">Dryer ${i}</div><span style="color:#aaa">Empty</span>`;
+            }
+
+            for (const order of ordersData.orders) {
+                const ticketRes = await fetch(`${API_URL}/orders/${order.order_id}`);
+                const ticketData = await ticketRes.json();
+
+                const customer = customerMap[order.customer_id] || { customer_name: "Unknown", number: "N/A" };
+                const customerDetails = `${customer.customer_name} <br> <span style="color:var(--text-muted); font-size:0.8rem;">${customer.number}</span>`;
+
+                ticketData.baskets.forEach(basket => {
+                    
+                    let stickerAction = "";
+                    if (basket.status === 'WASHING') {
+                        stickerAction = `
+                            <div style="margin-top: 10px; font-size: 0.8rem; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">To Dryer:</div>
+                            <div class="action-group" style="justify-content: flex-start;">
+                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 1)">Dryer 1</button>
+                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 2)">Dryer 2</button>
+                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 3)">Dryer 3</button>
+                            </div>
+                        `;
+                    } else if (basket.status === 'DRYING') {
+                        stickerAction = `<div style="margin-top: 10px;"><button class="action-btn" onclick="moveBasket(${basket.load_id}, 'FOLDING', null)">To Folding Table</button></div>`;
+                    }
+
+                    const stickerHTML = `
+                        <div class="basket-sticker">
+                            <strong style="font-size: 1rem;">Order #${order.order_id}</strong> (Basket ${basket.load_id})<br>
+                            <div style="margin-top: 5px; margin-bottom: 5px;">${customerDetails}</div>
+                            ${stickerAction}
+                        </div>
+                    `;
+
+                    if (basket.status === 'WASHING' && basket.machine_no) {
+                        const slot = document.getElementById(`washer-${basket.machine_no}`);
+                        slot.classList.add("occupied");
+                        slot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Washer ${basket.machine_no}</div>` + stickerHTML;
+                    } 
+                    else if (basket.status === 'DRYING' && basket.machine_no) {
+                        const slot = document.getElementById(`dryer-${basket.machine_no}`);
+                        slot.classList.add("occupied");
+                        slot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Dryer ${basket.machine_no}</div>` + stickerHTML;
+                    }
+                    else if (basket.status !== 'COMPLETED') { 
+                        
+                        let floorActions = "";
+                        let statusBadge = "";
+
+                        // UPDATED: Soft pastel badges
+                        if (basket.status === 'RECEIVED') {
+                            statusBadge = `<span class="status-badge" style="background: #E0E7FF; color: #3730A3;">Ready to Wash</span>`;
+                            floorActions = `
+                                <div style="text-align: right;">
+                                    <div style="font-size:0.8rem; font-weight:bold; color:var(--text-muted); margin-bottom: 5px;">Wash in:</div>
+                                    <div class="action-group">
+                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 1)">Washer 1</button>
+                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 2)">Washer 2</button>
+                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 3)">Washer 3</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (basket.status === 'FOLDING') {
+                            statusBadge = `<span class="status-badge" style="background: #F3E8FF; color: #6B21A8;">Folding</span>`;
+                            floorActions = `
+                                <button class="action-btn" style="background: var(--primary); color: white;" onclick="moveBasket(${basket.load_id}, 'BAGGED', null)">Mark as Bagged</button>
+                            `;
+                        } else if (basket.status === 'BAGGED') {
+                            statusBadge = `<span class="status-badge" style="background: #D1FAE5; color: #065F46;">Bagged (Ready)</span>`;
+                            floorActions = `
+                                <button class="action-btn" style="background: #10B981; color: white; border-color: #10B981;" onclick="moveBasket(${basket.load_id}, 'COMPLETED', null)">Finish Order</button>
+                            `;
+                        }
+
+                        document.getElementById("waiting-baskets").innerHTML += `
+                            <div class="card floor-card-layout" style="margin-bottom: 0;">
+                                <div>
+                                    <strong style="font-size: 1.1rem;">Order #${order.order_id} <span style="font-weight:normal;">(Basket ${basket.load_id})</span></strong>
+                                    <br><div style="margin-top: 4px; margin-bottom: 8px;">${statusBadge}</div>
+                                    <div>${customerDetails}</div>
+                                </div>
+                                ${floorActions}
+                            </div>
+                        `;
+                    }
+                });
+            }
+        }
+
+        async function moveBasket(loadId, newStatus, machineNo) {
+            const bodyData = { status: newStatus };
+            if (machineNo) bodyData.machine_no = machineNo;
+            else bodyData.machine_no = null;
+
+            const res = await fetch(`${API_URL}/loads/${loadId}/status`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(bodyData)
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                alert(`Error: ${errorData.detail}`);
+            } else {
+                loadShopFloor(); 
+            }
+        }
+
+        loadShopFloor();
+    </script>
 </body>
 </html>
