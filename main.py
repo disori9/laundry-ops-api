@@ -231,12 +231,17 @@ def get_order_ticket(order_id: int):
         cursor.execute(command, (order_id,))
         results = cursor.fetchone()
 
+        cursor.execute('SELECT payment_status, total_price FROM orders WHERE order_id = ?', (order_id,))
+        order_info = cursor.fetchone()
+
         if results:
             order_ticket["order_id"] = results[0]
             order_ticket["weight_kg"] = results[1]
             order_ticket["total_price"] = results[2]
             order_ticket["payment_status"] = results[3]
             order_ticket["customer_id"] = results[4]
+            order_ticket["payment_status"] = order_info[0]
+            order_ticket["total_price"] = order_info[1]
         else:
             raise HTTPException(status_code=404, detail="Order doesn't exist")
         
@@ -290,3 +295,13 @@ def get_all_customers():
 
     
     return {"customers": formatted_customers}
+
+
+@app.patch("/orders/{order_id}/payment")
+def update_order_payment(order_id: int, payment_data: PaymentUpdate):
+    with sqlite3.connect('laundry.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE orders SET payment_status = ? WHERE order_id = ?', 
+                       (payment_data.payment_status, order_id))
+        conn.commit()
+    return {"message": "Payment updated"}

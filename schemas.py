@@ -28,3 +28,6 @@ class LoadStatusUpdate(BaseModel):
 class ItemVerification(BaseModel):
     verified_count: int
     
+    
+class PaymentUpdate(BaseModel):
+    payment_status: str

@@ -18,14 +18,12 @@
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .modal-box { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .checklist-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 1rem; }
+        .checklist-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 1rem; align-items: center; }
 
         @media (max-width: 768px) {
             .machine-grid { grid-template-columns: 1fr; }
             .floor-card-layout { flex-direction: column; align-items: flex-start; }
             .action-group { margin-top: 10px; }
-            
-            /* FIXED: Forces Folding Station to the top on mobile! */
             .grid-2-col { display: flex; flex-direction: column; }
             .grid-2-col > div:last-child { order: -1; margin-bottom: 20px; } 
         }
@@ -44,16 +42,16 @@
 
         <h2>Washing Machines</h2>
         <div class="machine-grid">
-            <div id="washer-1" class="machine-slot"><div class="machine-title">Washer 1</div><span style="color:#aaa">Empty</span></div>
-            <div id="washer-2" class="machine-slot"><div class="machine-title">Washer 2</div><span style="color:#aaa">Empty</span></div>
-            <div id="washer-3" class="machine-slot"><div class="machine-title">Washer 3</div><span style="color:#aaa">Empty</span></div>
+            <div id="washer-1" class="machine-slot"></div>
+            <div id="washer-2" class="machine-slot"></div>
+            <div id="washer-3" class="machine-slot"></div>
         </div>
 
         <h2>Dryers</h2>
         <div class="machine-grid">
-            <div id="dryer-1" class="machine-slot"><div class="machine-title">Dryer 1</div><span style="color:#aaa">Empty</span></div>
-            <div id="dryer-2" class="machine-slot"><div class="machine-title">Dryer 2</div><span style="color:#aaa">Empty</span></div>
-            <div id="dryer-3" class="machine-slot"><div class="machine-title">Dryer 3</div><span style="color:#aaa">Empty</span></div>
+            <div id="dryer-1" class="machine-slot"></div>
+            <div id="dryer-2" class="machine-slot"></div>
+            <div id="dryer-3" class="machine-slot"></div>
         </div>
 
         <div class="grid-2-col" style="margin-top: 30px;">
@@ -73,8 +71,7 @@
             <h2 style="margin-top: 0; color: var(--primary);">QA Verification</h2>
             <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 0.9rem;">Update counts as you fold. Order #<span id="modalOrderId"></span></p>
             
-            <div id="modalChecklist" style="background: #F8FAFC; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
-                </div>
+            <div id="modalChecklist" style="background: #F8FAFC; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;"></div>
 
             <div style="display: flex; gap: 10px;">
                 <button class="btn" style="flex: 1; background: #64748B;" onclick="closeModal()">Close</button>
@@ -87,12 +84,8 @@
         const API_URL = "http://localhost:8000";
         
         const CATEGORY_NAMES = {
-            1: "Shirts / Tops",
-            2: "Pants / Bottoms",
-            3: "Undergarments",
-            4: "Towels / Beddings",
-            5: "Others",
-            6: "Comforters"
+            1: "Shirts / Tops", 2: "Pants / Bottoms", 3: "Undergarments",
+            4: "Towels / Beddings", 5: "Others", 6: "Comforters"
         };
 
         let globalOrderCache = {};
@@ -110,19 +103,17 @@
             const ordersRes = await fetch(`${API_URL}/orders`);
             const ordersData = await ordersRes.json();
             
-            document.getElementById("zone-dirty").innerHTML = "";
-            document.getElementById("zone-clean").innerHTML = "";
-            for(let i=1; i<=3; i++) {
-                document.getElementById(`washer-${i}`).className = "machine-slot";
-                document.getElementById(`washer-${i}`).innerHTML = `<div class="machine-title">Washer ${i}</div><span style="color:#aaa">Empty</span>`;
-                document.getElementById(`dryer-${i}`).className = "machine-slot";
-                document.getElementById(`dryer-${i}`).innerHTML = `<div class="machine-title">Dryer ${i}</div><span style="color:#aaa">Empty</span>`;
-            }
+            let dirtyZoneHTML = "";
+            let cleanZoneHTML = "";
+            let machines = { washer: {1: "", 2: "", 3: ""}, dryer: {1: "", 2: "", 3: ""} };
 
-            for (const order of ordersData.orders) {
-                const ticketRes = await fetch(`${API_URL}/orders/${order.order_id}`);
-                const ticketData = await ticketRes.json();
-                
+            const ticketPromises = ordersData.orders.map(order => 
+                fetch(`${API_URL}/orders/${order.order_id}`).then(res => res.json())
+            );
+            const allTickets = await Promise.all(ticketPromises);
+
+            allTickets.forEach((ticketData, index) => {
+                const order = ordersData.orders[index];
                 globalOrderCache[order.order_id] = ticketData.items || [];
 
                 const customer = customerMap[order.customer_id] || { customer_name: "Unknown", number: "N/A" };
@@ -132,11 +123,25 @@
                 const timeString = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 const dateString = dateObj.toLocaleDateString();
                 const niceDate = `🕒 ${dateString} - ${timeString}`;
+                
+                const paymentHeaderBadge = ticketData.payment_status === 'PAID' 
+                    ? `<span style="background: #D1FAE5; color: #065F46; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; white-space: nowrap;">✅ PAID</span>`
+                    : `<span style="background: #FEE2E2; color: #991B1B; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; white-space: nowrap;">❌ UNPAID ₱${ticketData.total_price}</span>`;
 
-                ticketData.baskets.forEach((basket, index) => {
-                    const loadNo = index + 1;
+                ticketData.baskets.forEach((basket, bIndex) => {
+                    const loadNo = bIndex + 1;
                     const totalLoads = ticketData.baskets.length;
                     const loadText = `Load ${loadNo} of ${totalLoads}`;
+
+                    // BULLETPROOF ALIGNMENT: Forces the Order ID and Pill to sit on the same line
+                    const titleHeaderRow = `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+                            <div style="font-size: 1.05rem; font-weight: bold; white-space: nowrap;">
+                                Order #${order.order_id} <span style="font-weight:normal; color:var(--primary);">(${loadText})</span>
+                            </div>
+                            ${paymentHeaderBadge}
+                        </div>
+                    `;
                     
                     let stickerAction = "";
                     if (basket.status === 'WASHING') {
@@ -154,29 +159,23 @@
 
                     const stickerHTML = `
                         <div class="basket-sticker">
-                            <strong style="font-size: 1rem;">Order #${order.order_id}</strong> <span style="color:var(--primary); font-weight:bold;">(${loadText})</span><br>
+                            ${titleHeaderRow}
                             <div style="margin-top: 5px; margin-bottom: 5px;">${customerDetails}</div>
                             ${stickerAction}
                         </div>
                     `;
 
                     if (basket.status === 'WASHING' && basket.machine_no) {
-                        const slot = document.getElementById(`washer-${basket.machine_no}`);
-                        slot.classList.add("occupied");
-                        slot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Washer ${basket.machine_no}</div>` + stickerHTML;
+                        machines.washer[basket.machine_no] = stickerHTML;
                     } 
                     else if (basket.status === 'DRYING' && basket.machine_no) {
-                        const slot = document.getElementById(`dryer-${basket.machine_no}`);
-                        slot.classList.add("occupied");
-                        slot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Dryer ${basket.machine_no}</div>` + stickerHTML;
+                        machines.dryer[basket.machine_no] = stickerHTML;
                     }
                     else if (basket.status !== 'COMPLETED') { 
                         let floorActions = "";
                         let statusBadge = "";
-                        let targetZone = ""; 
 
                         if (basket.status === 'RECEIVED') {
-                            targetZone = "zone-dirty";
                             statusBadge = `<span class="status-badge" style="background: #E0E7FF; color: #3730A3;">Wait: Wash</span>`;
                             floorActions = `
                                 <div style="text-align: right;">
@@ -188,34 +187,69 @@
                                     </div>
                                 </div>
                             `;
-                        } else if (basket.status === 'FOLDING') {
-                            targetZone = "zone-clean";
-                            statusBadge = `<span class="status-badge" style="background: #F3E8FF; color: #6B21A8;">Folding</span>`;
-                            floorActions = `
-                                <button class="action-btn" style="background: #8B5CF6; color: white;" onclick="openVerifyModal(${basket.load_id}, ${order.order_id})">🔍 QA & Bag</button>
+                            
+                            dirtyZoneHTML += `
+                                <div class="card floor-card-layout" style="margin-bottom: 0;">
+                                    <div>
+                                        ${titleHeaderRow}
+                                        <div style="margin-top: 4px; margin-bottom: 4px;">${statusBadge}</div>
+                                        <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 8px;">${niceDate}</div>
+                                        <div>${customerDetails}</div>
+                                    </div>
+                                    ${floorActions}
+                                </div>
                             `;
-                        } else if (basket.status === 'BAGGED') {
-                            targetZone = "zone-clean";
-                            statusBadge = `<span class="status-badge" style="background: #D1FAE5; color: #065F46;">Bagged (Ready)</span>`;
-                            floorActions = `
-                                <button class="action-btn" style="background: #10B981; color: white; border-color: #10B981;" onclick="moveBasket(${basket.load_id}, 'COMPLETED', null)">Finish Order</button>
+                        } else if (basket.status === 'FOLDING' || basket.status === 'BAGGED') {
+                            if (basket.status === 'FOLDING') {
+                                statusBadge = `<span class="status-badge" style="background: #F3E8FF; color: #6B21A8;">Folding</span>`;
+                                floorActions = `<button class="action-btn" style="background: #8B5CF6; color: white;" onclick="openVerifyModal(${basket.load_id}, ${order.order_id})">🔍 QA & Bag</button>`;
+                            } else {
+                                statusBadge = `<span class="status-badge" style="background: #D1FAE5; color: #065F46;">Bagged (Ready)</span>`;
+                                if (ticketData.payment_status === 'UNPAID') {
+                                    floorActions = `<button class="action-btn" style="background: #EF4444; color: white; border-color: #EF4444;" onclick="batchFinishOrder(${order.order_id}, false, ${ticketData.total_price})">💵 Collect ₱${ticketData.total_price}</button>`;
+                                } else {
+                                    floorActions = `<button class="action-btn" style="background: #10B981; color: white; border-color: #10B981;" onclick="batchFinishOrder(${order.order_id}, true, 0)">✅ Release to Customer</button>`;
+                                }
+                            }
+                            
+                            cleanZoneHTML += `
+                                <div class="card floor-card-layout" style="margin-bottom: 0;">
+                                    <div>
+                                        ${titleHeaderRow}
+                                        <div style="margin-top: 4px; margin-bottom: 4px;">${statusBadge}</div>
+                                        <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 8px;">${niceDate}</div>
+                                        <div>${customerDetails}</div>
+                                    </div>
+                                    ${floorActions}
+                                </div>
                             `;
                         }
-
-                        document.getElementById(targetZone).innerHTML += `
-                            <div class="card floor-card-layout" style="margin-bottom: 0;">
-                                <div>
-                                    <strong style="font-size: 1.1rem;">Order #${order.order_id} <span style="font-weight:normal; color:var(--primary);">(${loadText})</span></strong>
-                                    <br><div style="margin-top: 4px; margin-bottom: 4px;">${statusBadge}</div>
-                                    <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 8px;">${niceDate}</div>
-                                    <div>${customerDetails}</div>
-                                </div>
-                                ${floorActions}
-                            </div>
-                        `;
                     }
                 });
+            });
+
+            for(let i=1; i<=3; i++) {
+                let wSlot = document.getElementById(`washer-${i}`);
+                if(machines.washer[i]) {
+                    wSlot.className = "machine-slot occupied";
+                    wSlot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Washer ${i}</div>` + machines.washer[i];
+                } else {
+                    wSlot.className = "machine-slot";
+                    wSlot.innerHTML = `<div class="machine-title">Washer ${i}</div><span style="color:#aaa">Empty</span>`;
+                }
+
+                let dSlot = document.getElementById(`dryer-${i}`);
+                if(machines.dryer[i]) {
+                    dSlot.className = "machine-slot occupied";
+                    dSlot.innerHTML = `<div class="machine-title" style="color: var(--primary);">Dryer ${i}</div>` + machines.dryer[i];
+                } else {
+                    dSlot.className = "machine-slot";
+                    dSlot.innerHTML = `<div class="machine-title">Dryer ${i}</div><span style="color:#aaa">Empty</span>`;
+                }
             }
+
+            document.getElementById("zone-dirty").innerHTML = dirtyZoneHTML;
+            document.getElementById("zone-clean").innerHTML = cleanZoneHTML;
         }
 
         function openVerifyModal(loadId, orderId) {
@@ -225,109 +259,125 @@
             
             const items = globalOrderCache[orderId] || [];
             const checklistDiv = document.getElementById("modalChecklist");
-            const confirmBtn = document.getElementById("modalConfirmBtn");
+            const buttonContainer = document.getElementById("modalChecklist").nextElementSibling;
+            
             checklistDiv.innerHTML = "";
 
             if (items.length === 0) {
                 checklistDiv.innerHTML = "<div style='color: var(--text-muted); text-align: center;'>No specific items tracked.</div>";
-                confirmBtn.disabled = false;
-                confirmBtn.style.opacity = "1";
-                confirmBtn.textContent = "✅ Bag It";
+                buttonContainer.innerHTML = `
+                    <button class="btn" style="flex: 1; background: #64748B;" onclick="closeModal()">Close</button>
+                    <button id="modalConfirmBtn" class="btn" style="flex: 2; background: #10B981;" onclick="confirmBagging()">✅ Bag It</button>
+                `;
             } else {
-                let allVerified = true;
-
                 items.forEach(item => {
                     const itemName = CATEGORY_NAMES[item.category_id] || "Unknown Item";
-                    
-                    // BULLETPROOF VARIABLES: Handles both old and new Python formats safely!
                     const targetCount = item.initial_count || item.count || 0; 
                     const currentCount = item.verified_count || 0;
                     
                     const isComplete = currentCount >= targetCount;
-                    if (!isComplete) allVerified = false;
+                    const textStyle = isComplete ? 'text-decoration: line-through; color: #10B981; font-weight: bold;' : '';
 
-                    // Strikes through the text and turns green when they reach the target count
                     checklistDiv.innerHTML += `
-                        <div class="checklist-row" style="align-items: center;">
-                            <span style="${isComplete ? 'text-decoration: line-through; color: #10B981; font-weight: bold;' : ''}">${itemName}</span>
+                        <div class="checklist-row">
+                            <span id="itemName_${item.category_id}" style="${textStyle}">${itemName}</span>
                             <div>
-                                <input type="number" min="0" max="${targetCount}" 
+                                <input type="number" id="catInput_${item.category_id}" min="0" max="${targetCount}" 
                                        value="${currentCount}" 
-                                       onchange="updateItemProgress(${orderId}, ${item.category_id}, this.value)"
+                                       oninput="handleInstantInput(${orderId}, ${item.category_id}, this.value, ${targetCount})"
                                        style="width: 50px; text-align: center; padding: 5px; border: 1px solid var(--border); border-radius: 4px; font-weight: bold;">
                                 <span style="color: var(--text-muted); font-weight: bold;"> / ${targetCount}</span>
                             </div>
                         </div>
                     `;
                 });
-
-                // QA Lock Logic
-                if (allVerified) {
-                    confirmBtn.disabled = false;
-                    confirmBtn.style.opacity = "1";
-                    confirmBtn.textContent = "✅ Items Match (Bag It)";
-                } else {
-                    confirmBtn.disabled = true;
-                    confirmBtn.style.opacity = "0.5";
-                    confirmBtn.textContent = "🔒 Pending Verification";
-                }
+                
+                buttonContainer.innerHTML = `
+                    <button class="btn" style="flex: 1; background: #64748B;" onclick="closeModal()">Close</button>
+                    <button id="modalConfirmBtn" class="btn" style="flex: 2; background: #10B981;" onclick="confirmBagging()">✅ Items Match (Bag It)</button>
+                `;
+                
+                evaluateQALock(orderId); 
             }
 
             document.getElementById("verifyModal").style.display = "flex";
         }
 
-        // Instantly saves the count to the database when they type a number
-        async function updateItemProgress(orderId, categoryId, newCount) {
+        function handleInstantInput(orderId, categoryId, newCount, targetCount) {
             const val = parseInt(newCount) || 0;
-            
-            // 1. Send silent update to backend
-            await fetch(`${API_URL}/orders/${orderId}/items/${categoryId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
+
+            fetch(`${API_URL}/orders/${orderId}/items/${categoryId}`, {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ verified_count: val })
             });
 
-            // 2. Update our local cache
             const orderItems = globalOrderCache[orderId];
             const item = orderItems.find(i => i.category_id === categoryId);
             if (item) item.verified_count = val;
 
-            // 3. Refresh the modal to see if the Lock should open!
-            openVerifyModal(activeLoadToBag, orderId); 
+            const textSpan = document.getElementById(`itemName_${categoryId}`);
+            if (val >= targetCount) {
+                textSpan.style.textDecoration = "line-through";
+                textSpan.style.color = "#10B981";
+                textSpan.style.fontWeight = "bold";
+            } else {
+                textSpan.style.textDecoration = "none";
+                textSpan.style.color = ""; 
+                textSpan.style.fontWeight = "normal";
+            }
+
+            evaluateQALock(orderId);
+        }
+
+        function evaluateQALock(orderId) {
+            const items = globalOrderCache[orderId] || [];
+            const confirmBtn = document.getElementById("modalConfirmBtn");
+            
+            if (!confirmBtn) return; 
+
+            let allVerified = true;
+            items.forEach(item => {
+                const target = item.initial_count || item.count || 0;
+                const current = item.verified_count || 0;
+                if (current < target) allVerified = false;
+            });
+
+            if (allVerified) {
+                confirmBtn.disabled = false;
+                confirmBtn.style.opacity = "1";
+                confirmBtn.textContent = "✅ Items Match (Bag It)";
+            } else {
+                confirmBtn.disabled = true;
+                confirmBtn.style.opacity = "0.5";
+                confirmBtn.textContent = "🔒 Pending Verification";
+            }
         }
 
         function closeModal() {
             document.getElementById("verifyModal").style.display = "none";
             activeLoadToBag = null;
         }
-        
+
         async function confirmBagging() {
             if (!activeOrderToBag) return;
-
             const confirmBtn = document.getElementById("modalConfirmBtn");
             confirmBtn.textContent = "Bagging Order...";
             confirmBtn.disabled = true;
 
             try {
-                // 1. Fetch the order to find ALL baskets currently on the folding table
                 const res = await fetch(`${API_URL}/orders/${activeOrderToBag}`);
                 const ticketData = await res.json();
-
-                // 2. Filter for baskets that are specifically in the 'FOLDING' status
                 const basketsToBag = ticketData.baskets.filter(b => b.status === 'FOLDING');
 
-                // 3. Move them ALL to 'BAGGED' simultaneously!
                 for (const basket of basketsToBag) {
                     await fetch(`${API_URL}/loads/${basket.load_id}/status`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
+                        method: "PATCH", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ status: 'BAGGED', machine_no: null })
                     });
                 }
 
                 closeModal();
-                loadShopFloor(); // Refresh the screen instantly
-                
+                loadShopFloor(); 
             } catch (error) {
                 alert("Error batch-bagging loads.");
                 confirmBtn.textContent = "✅ Items Match (Bag It)";
@@ -335,18 +385,58 @@
             }
         }
 
+        async function batchFinishOrder(orderId, isPaid, price) {
+            if (!isPaid) {
+                const confirmed = confirm(`Collect ₱${price} from the customer to release this order?`);
+                if (!confirmed) return; 
+                
+                await fetch(`${API_URL}/orders/${orderId}/payment`, {
+                    method: "PATCH", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ payment_status: 'PAID' })
+                });
+            } else {
+                const confirmed = confirm(`Release this order to the customer?`);
+                if (!confirmed) return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/orders/${orderId}`);
+                const ticketData = await res.json();
+                const basketsToFinish = ticketData.baskets.filter(b => b.status === 'BAGGED');
+
+                for (const basket of basketsToFinish) {
+                    await fetch(`${API_URL}/loads/${basket.load_id}/status`, {
+                        method: "PATCH", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: 'COMPLETED', machine_no: null })
+                    });
+                }
+                loadShopFloor();
+            } catch (error) {
+                alert("Error completing order.");
+            }
+        }
+
+        // RESTORED ERROR HANDLING!
         async function moveBasket(loadId, newStatus, machineNo) {
             const bodyData = { status: newStatus };
             if (machineNo) bodyData.machine_no = machineNo;
             else bodyData.machine_no = null;
 
-            const res = await fetch(`${API_URL}/loads/${loadId}/status`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(bodyData)
-            });
-
-            if (res.ok) loadShopFloor(); 
+            try {
+                const res = await fetch(`${API_URL}/loads/${loadId}/status`, {
+                    method: "PATCH", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(bodyData)
+                });
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    alert(`⚠️ Error: ${errorData.detail}`); 
+                } else {
+                    loadShopFloor(); 
+                }
+            } catch (error) {
+                alert("Could not connect to the server.");
+            }
         }
 
         loadShopFloor();
