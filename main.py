@@ -164,12 +164,12 @@ def get_all_orders(payment_status: Optional[str] = None):
         cursor = conn.cursor()
 
         if payment_status:
-            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads FROM orders WHERE payment_status = ?'
+            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads, created_at FROM orders WHERE payment_status = ?'
             
             cursor.execute(command, (payment_status,))
 
         else:
-            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads FROM orders'
+            command = 'SELECT order_id, weight_kg, total_price, customer_id, total_loads, created_at FROM orders'
 
             cursor.execute(command)
         
@@ -182,7 +182,8 @@ def get_all_orders(payment_status: Optional[str] = None):
             "weight_kg": row[1], 
             "total_price": row[2],
             "customer_id": row[3],
-            "total_loads": row[4]
+            "total_loads": row[4],
+            "created_at": row[5]
         }
         formatted_orders.append(item_and_count)
     

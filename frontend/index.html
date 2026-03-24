@@ -103,7 +103,7 @@
             </div>
     </div>
 
-    <script>
+<script>
         const API_URL = "http://localhost:8000";
 
         async function loadShopFloor() {
@@ -132,9 +132,21 @@
                 const ticketData = await ticketRes.json();
 
                 const customer = customerMap[order.customer_id] || { customer_name: "Unknown", number: "N/A" };
-                const customerDetails = `${customer.customer_name} <br> <span style="color:var(--text-muted); font-size:0.8rem;">${customer.number}</span>`;
+                const customerDetails = `${customer.customer_name} <br> <span style="color:var(--text-muted); font-size:0.8rem;">📞 ${customer.number}</span>`;
 
-                ticketData.baskets.forEach(basket => {
+                // FORMAT THE DATE (Converts SQLite UTC time to Local PH Time)
+                const dateObj = new Date(order.created_at + 'Z'); 
+                const timeString = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const dateString = dateObj.toLocaleDateString();
+                const niceDate = `🕒 ${dateString} - ${timeString}`;
+
+                // Notice the extra 'index' parameter here!
+                ticketData.baskets.forEach((basket, index) => {
+                    
+                    // CALCULATE THE LOAD NUMBER (e.g. "Load 1 of 3")
+                    const loadNo = index + 1;
+                    const totalLoads = ticketData.baskets.length;
+                    const loadText = `Load ${loadNo} of ${totalLoads}`;
                     
                     let stickerAction = "";
                     if (basket.status === 'WASHING') {
@@ -150,9 +162,10 @@
                         stickerAction = `<div style="margin-top: 10px;"><button class="action-btn" onclick="moveBasket(${basket.load_id}, 'FOLDING', null)">To Folding Table</button></div>`;
                     }
 
+                    // UPDATED STICKER: Shows "Load 1 of X" instead of Basket ID
                     const stickerHTML = `
                         <div class="basket-sticker">
-                            <strong style="font-size: 1rem;">Order #${order.order_id}</strong> (Basket ${basket.load_id})<br>
+                            <strong style="font-size: 1rem;">Order #${order.order_id}</strong> <span style="color:var(--primary); font-weight:bold;">(${loadText})</span><br>
                             <div style="margin-top: 5px; margin-bottom: 5px;">${customerDetails}</div>
                             ${stickerAction}
                         </div>
@@ -173,7 +186,6 @@
                         let floorActions = "";
                         let statusBadge = "";
 
-                        // UPDATED: Soft pastel badges
                         if (basket.status === 'RECEIVED') {
                             statusBadge = `<span class="status-badge" style="background: #E0E7FF; color: #3730A3;">Ready to Wash</span>`;
                             floorActions = `
@@ -198,11 +210,13 @@
                             `;
                         }
 
+                        // UPDATED FLOOR CARD: Shows the Timestamp and the "Load 1 of X"
                         document.getElementById("waiting-baskets").innerHTML += `
                             <div class="card floor-card-layout" style="margin-bottom: 0;">
                                 <div>
-                                    <strong style="font-size: 1.1rem;">Order #${order.order_id} <span style="font-weight:normal;">(Basket ${basket.load_id})</span></strong>
-                                    <br><div style="margin-top: 4px; margin-bottom: 8px;">${statusBadge}</div>
+                                    <strong style="font-size: 1.1rem;">Order #${order.order_id} <span style="font-weight:normal; color:var(--primary);">(${loadText})</span></strong>
+                                    <br><div style="margin-top: 4px; margin-bottom: 4px;">${statusBadge}</div>
+                                    <div style="font-size: 0.8rem; color: #64748B; margin-bottom: 8px;">${niceDate}</div>
                                     <div>${customerDetails}</div>
                                 </div>
                                 ${floorActions}
