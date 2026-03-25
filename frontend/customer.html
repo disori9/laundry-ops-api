@@ -3,56 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Customers | Laundry Hub</title>
+    <title>Customer Directory | Laundry Hub</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Style for the Tab Toggle Switch */
-        .toggle-container {
-            display: flex;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-        .toggle-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            font-weight: bold;
-            font-size: 1rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: background 0.2s, color 0.2s;
-        }
-        .toggle-btn.active {
-            background: var(--primary);
-            color: white;
-        }
+        .container { max-width: 1000px !important; }
         
-        /* Hiding/Showing Tabs */
-        .tab-content {
-            display: none;
+        /* Search Bar Styling */
+        .search-container { margin-bottom: 25px; position: relative; }
+        .search-bar {
+            width: 100%; padding: 14px 20px; font-size: 1rem;
+            border: 2px solid var(--border); border-radius: 12px;
+            outline: none; transition: all 0.2s; box-sizing: border-box;
         }
-        .tab-content.active {
-            display: block;
-        }
+        .search-bar:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
 
-        /* Search Bar Icon styling */
-        .search-wrapper {
-            position: relative;
-            margin-bottom: 20px;
+        /* CRM Table Card */
+        .crm-card {
+            background: white; border-radius: 12px; border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;
         }
-        .search-wrapper input {
-            padding-left: 35px; /* Make room for the emoji/icon */
+        .crm-table { width: 100%; border-collapse: collapse; }
+        .crm-table th { 
+            background: #F8FAFC; padding: 15px; text-align: left; font-size: 0.8rem; 
+            text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
         }
-        .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 15px;
-            font-size: 1.2rem;
-            color: var(--text-muted);
+        .crm-table td { padding: 15px; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        .crm-table tr:last-child td { border-bottom: none; }
+        .crm-table tr:hover { background: #F1F5F9; cursor: pointer; }
+
+        /* Profile Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-box {
+            background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 85vh; display: flex; flex-direction: column;
+        }
+        .history-container { overflow-y: auto; flex-grow: 1; margin: 15px 0; padding-right: 5px; }
+        .history-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; background: #F8FAFC; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border);
         }
     </style>
 </head>
@@ -66,156 +58,144 @@
     </nav>
 
     <div class="container">
-        <h1 class="page-title">Customer Center</h1>
-
-        <div class="toggle-container">
-            <button id="btn-directory" class="toggle-btn active" onclick="switchTab('directory')">Directory</button>
-            <button id="btn-add" class="toggle-btn" onclick="switchTab('add')">Add New</button>
+        <h1 class="page-title">Customer Directory</h1>
+        
+        <div class="search-container">
+            <input type="text" id="crmSearch" class="search-bar" placeholder="Search by name or mobile number..." onkeyup="doSearch()">
         </div>
 
-        <div id="tab-directory" class="tab-content active">
-            <div class="card">
-                <div class="search-wrapper">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="searchInput" placeholder="Search by name..." onkeyup="filterCustomers()">
+        <div class="crm-card" style="overflow-x: auto;">
+            <table class="crm-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Mobile Number</th>
+                        <th>Total Visits</th>
+                    </tr>
+                </thead>
+                <tbody id="crmBody">
+                    <tr><td colspan="3" style="text-align:center; padding: 40px; color: #94A3B8;">Gathering records...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="customerModal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modalHeader">
+                <h2 style="margin: 0; color: var(--text-main);" id="pName"></h2>
+                <p style="margin: 5px 0 0 0; color: var(--text-muted); font-size: 0.9rem;" id="pPhone"></p>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <div style="flex: 1; background: #F0F9FF; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 0.75rem; font-weight: bold; color: #0369A1; text-transform: uppercase;">Total Visits</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-main);" id="pVisits">0</div>
                 </div>
-                
-                <div id="customerList" style="display: flex; flex-direction: column; gap: 10px;">
-                    <p style="color: var(--text-muted)">Loading customers...</p>
+                <div style="flex: 1; background: #FEF2F2; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 0.75rem; font-weight: bold; color: #B91C1C; text-transform: uppercase;">Unpaid Orders</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #B91C1C;" id="pUnpaid">0</div>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-add" class="tab-content">
-            <div class="card">
-                <h2 style="margin-top: 0; margin-bottom: 20px;">Register New Customer</h2>
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="custName" placeholder="e.g. Maria Santos">
-                </div>
-                <div class="form-group">
-                    <label>Phone Number</label>
-                    <input type="text" id="custPhone" placeholder="e.g. 09123456789">
-                </div>
-                <button class="btn" onclick="createCustomer()">Register Customer</button>
-            </div>
-        </div>
+            <h4 style="margin: 20px 0 10px 0; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">Recent Orders</h4>
+            <div class="history-container" id="pHistory"></div>
 
+            <button class="btn" style="background: #64748B; width: 100%;" onclick="closeModal()">Close</button>
+        </div>
     </div>
 
     <script>
         const API_URL = "http://localhost:8000";
-        let allCustomers = []; // We will store the fetched customers here for quick searching
+        let masterData = [];
 
-        // --- TAB LOGIC ---
-        function switchTab(tabName) {
-            // Update Buttons
-            document.getElementById('btn-directory').classList.remove('active');
-            document.getElementById('btn-add').classList.remove('active');
-            document.getElementById(`btn-${tabName}`).classList.add('active');
-
-            // Update Content Views
-            document.getElementById('tab-directory').classList.remove('active');
-            document.getElementById('tab-add').classList.remove('active');
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-
-            // Focus the search bar automatically if they switch to directory
-            if(tabName === 'directory') {
-                document.getElementById('searchInput').focus();
-            }
-        }
-
-        // --- DATA LOGIC ---
-        async function fetchCustomers() {
+        async function initCRM() {
             try {
-                const res = await fetch(`${API_URL}/customers`);
-                const data = await res.json();
+                const cRes = await fetch(`${API_URL}/customers`);
+                const cData = await cRes.json();
                 
-                allCustomers = data.customers; // Save to our global variable
-                renderCustomerList(allCustomers); // Draw them on the screen
-                
-            } catch (error) {
-                document.getElementById("customerList").innerHTML = "<p style='color: var(--danger)'>Error loading customers.</p>";
-            }
-        }
+                const oRes = await fetch(`${API_URL}/orders`);
+                const oData = await oRes.json();
 
-        function renderCustomerList(listToDraw) {
-            const listDiv = document.getElementById("customerList");
-            listDiv.innerHTML = ""; 
+                const tickets = await Promise.all(oData.orders.map(o => 
+                    fetch(`${API_URL}/orders/${o.order_id}`).then(r => r.json())
+                ));
 
-            if (listToDraw.length === 0) {
-                listDiv.innerHTML = "<p style='color: var(--text-muted); text-align: center; padding: 20px;'>No customers found.</p>";
-                return;
-            }
-
-            listToDraw.forEach(c => {
-                listDiv.innerHTML += `
-                    <div style="padding: 15px; border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
-                        <div>
-                            <strong style="font-size: 1.1rem; color: var(--primary);">${c.customer_name}</strong>
-                            <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">📞 ${c.number}</div>
-                        </div>
-                        <div style="font-size: 0.8rem; color: #94A3B8; font-weight: bold;">
-                            ID: ${c.customer_id}
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        // --- SEARCH LOGIC ---
-        function filterCustomers() {
-            // 1. Get what the user typed and make it lowercase
-            const searchTerm = document.getElementById("searchInput").value.toLowerCase();
-            
-            // 2. Filter the global array based on the name
-            const filteredList = allCustomers.filter(customer => {
-                return customer.customer_name.toLowerCase().includes(searchTerm);
-            });
-            
-            // 3. Re-draw the list with only the matches
-            renderCustomerList(filteredList);
-        }
-
-        // --- CREATE LOGIC ---
-        async function createCustomer() {
-            const name = document.getElementById("custName").value;
-            const phone = document.getElementById("custPhone").value;
-
-            if (!name || !phone) {
-                alert("Please fill in both name and phone number!");
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_URL}/customers`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ cust_name: name, number: phone })
+                let stats = {};
+                cData.customers.forEach(c => {
+                    stats[c.customer_id] = { id: c.customer_id, name: c.customer_name, phone: c.number, visits: 0, unpaidCount: 0, history: [] };
                 });
 
-                if (res.ok) {
-                    // Clear inputs
-                    document.getElementById("custName").value = "";
-                    document.getElementById("custPhone").value = "";
-                    
-                    // Re-fetch the data from the server so the new person is in our global list
-                    await fetchCustomers(); 
-                    
-                    // Clear the search bar and switch back to the directory tab to see them!
-                    document.getElementById("searchInput").value = "";
-                    switchTab('directory');
-                    
-                } else {
-                    alert("Error registering customer.");
-                }
-            } catch (error) {
-                alert("Could not connect to the backend API.");
+                tickets.forEach((t, i) => {
+                    const cid = oData.orders[i].customer_id;
+                    if(stats[cid]) {
+                        stats[cid].visits++;
+                        if(t.payment_status === 'UNPAID') {
+                            stats[cid].unpaidCount++;
+                        }
+                        // We no longer save the price, just the ID and Status
+                        stats[cid].history.push({ id: t.order_id, status: t.payment_status });
+                    }
+                });
+
+                // Sort alphabetically by name instead of by money spent
+                masterData = Object.values(stats).sort((a,b) => a.name.localeCompare(b.name));
+                renderCRM(masterData);
+
+            } catch (e) { 
+                document.getElementById('crmBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: #EF4444;">Error connecting to the server. Is Python running?</td></tr>';
             }
         }
 
-        // Run this immediately when the page opens
-        fetchCustomers();
+        function renderCRM(list) {
+            const body = document.getElementById('crmBody');
+            
+            if(list.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: #94A3B8;">No customers found.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = list.map(c => `
+                <tr onclick="viewCustomer(${c.id})">
+                    <td style="font-weight: 600; color: var(--text-main);">${c.name}</td>
+                    <td style="color: #64748B;">${c.phone}</td>
+                    <td style="color: var(--text-main); font-weight: bold;">${c.visits}</td>
+                </tr>
+            `).join('');
+        }
+
+        function doSearch() {
+            const q = document.getElementById('crmSearch').value.toLowerCase();
+            const filtered = masterData.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+            renderCRM(filtered);
+        }
+
+        function viewCustomer(id) {
+            const c = masterData.find(x => x.id === id);
+            
+            document.getElementById('pName').textContent = c.name;
+            document.getElementById('pPhone').textContent = "📞 " + c.phone;
+            document.getElementById('pVisits').textContent = c.visits;
+            document.getElementById('pUnpaid').textContent = c.unpaidCount;
+            
+            // History no longer shows prices
+            const historyHTML = c.history.reverse().map(h => `
+                <div class="history-row">
+                    <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-main);">Order #${h.id}</div>
+                    <div style="font-size: 0.8rem; font-weight: bold; padding: 4px 10px; border-radius: 12px; background: ${h.status === 'PAID' ? '#D1FAE5' : '#FEE2E2'}; color: ${h.status === 'PAID' ? '#065F46' : '#991B1B'}">
+                        ${h.status}
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('pHistory').innerHTML = historyHTML || "<div style='text-align:center; color: var(--text-muted); padding: 10px;'>No orders yet.</div>";
+
+            document.getElementById('customerModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('customerModal').style.display = 'none'; }
+
+        initCRM();
     </script>
 </body>
 </html>
