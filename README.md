@@ -35,7 +35,7 @@ A full-stack Point of Sale (POS) and Operations Management system designed speci
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/yourusername/laundry-hub.git](https://github.com/yourusername/laundry-hub.git)
+   git clone [https://github.com/yourusername/laundry-hub.git](https://github.com/disori9/laundry-hub.git)
    ```
 
 2. **Start the Backend:**
