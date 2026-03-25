@@ -36,6 +36,16 @@
         .item-input input {
             padding: 10px; text-align: center; font-weight: bold;
         }
+
+        /* Modal Styles for New Customer */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-box {
+            background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -52,12 +62,15 @@
 
         <div class="card" id="orderFormCard">
             
-            <div class="form-group">
-                <label>1. Select Customer</label>
-                <select id="orderCustomer">
-                    <option value="" disabled selected>Loading customers...</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label style="font-weight: bold; margin-bottom: 5px; display: block; color: var(--text-main);">1. Select Customer</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="orderCustomer" style="flex: 3; padding: 12px; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none;">
+                            <option value="" disabled selected>Loading customers...</option>
+                        </select>
+                        <button type="button" class="btn" style="flex: 1; background: #3B82F6; padding: 12px 0; margin: 0; white-space: nowrap;" onclick="openNewCustomerModal()">➕ New</button>
+                    </div>
+                </div>
 
             <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
 
@@ -130,22 +143,77 @@
 
     </div>
 
+    <div id="newCustomerModal" class="modal-overlay">
+        <div class="modal-box">
+            <h2 style="margin-top: 0; color: var(--primary);">New Customer</h2>
+            
+            <label style="font-weight: bold; font-size: 0.9rem;">Full Name</label>
+            <input type="text" id="newCustName" placeholder="e.g. Juan Dela Cruz" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box;">
+            
+            <label style="font-weight: bold; font-size: 0.9rem;">Phone Number</label>
+            <input type="text" id="newCustPhone" placeholder="e.g. 09171234567" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box;">
+            
+            <div style="display: flex; gap: 10px;">
+                <button type="button" class="btn" style="flex: 1; background: #64748B;" onclick="closeNewCustomerModal()">Cancel</button>
+                <button type="button" id="saveCustBtn" class="btn" style="flex: 1; background: #10B981;" onclick="saveNewCustomer()">Save Customer</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = "http://localhost:8000";
 
-        // --- NEW INDESTRUCTIBLE FRACTION TRANSLATOR ---
+        // --- NEW CUSTOMER MODAL LOGIC ---
+        function openNewCustomerModal() {
+            document.getElementById('newCustomerModal').style.display = 'flex';
+        }
+
+        function closeNewCustomerModal() {
+            document.getElementById('newCustomerModal').style.display = 'none';
+        }
+
+        async function saveNewCustomer() {
+            const name = document.getElementById('newCustName').value.trim();
+            const phone = document.getElementById('newCustPhone').value.trim();
+            const btn = document.getElementById('saveCustBtn');
+
+            if(!name || !phone) return alert("Please fill in both name and phone number.");
+
+            btn.textContent = "Saving...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_URL}/customers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_name: name, number: phone })
+                });
+                
+                if(res.ok) {
+                    const data = await res.json();
+                    await loadDropdown(); 
+                    document.getElementById('orderCustomer').value = data.customer_id;
+                    closeNewCustomerModal();
+                    document.getElementById('newCustName').value = "";
+                    document.getElementById('newCustPhone').value = "";
+                } else {
+                    alert("Failed to save customer.");
+                }
+            } catch (e) {
+                alert("Error connecting to server.");
+            } finally {
+                btn.textContent = "Save Customer";
+                btn.disabled = false;
+            }
+        }
+
+        // --- INDESTRUCTIBLE FRACTION TRANSLATOR ---
         function parseWeight(inputStr) {
             try {
                 if (!inputStr) return 0;
-                
-                // 1. Remove any weird characters (keep only numbers, spaces, dots, slashes)
                 let cleaned = inputStr.replace(/[^0-9\s\/.]/g, '').trim();
                 if (!cleaned) return 0;
-                
-                // 2. Find a number, a space, and a fraction (like "5 1/2") and turn the space into a "+"
                 cleaned = cleaned.replace(/(\d+)\s+(\d+\/\d+)/g, '$1+$2');
-                
-                // 3. Safely calculate the math equation (e.g. calculates 5+1/2 perfectly)
                 let val = Function('"use strict";return (' + cleaned + ')')();
                 return val || 0;
             } catch (e) {
@@ -153,7 +221,6 @@
             }
         }
 
-        // --- MIRRORS YOUR EXACT PYTHON PRICING DATA ---
         function getLoadPrice(weight) {
             if (weight <= 0) return 0;
             if (weight <= 6.0) return 170;
@@ -211,7 +278,6 @@
 
             if (weight > 0) {
                 const clothesLoads = Math.ceil(weight / 8.5);
-                // SPLIT PERFECTLY EVENLY (Matches Python Logic)
                 const weightPerLoad = weight / clothesLoads;
                 const pricePerLoad = getLoadPrice(weightPerLoad);
                 
@@ -265,7 +331,6 @@
         }
 
         async function createOrder(event) {
-            // STOP THE BROWSER FROM RELOADING!
             if (event) event.preventDefault(); 
 
             const custId = document.getElementById("orderCustomer").value;
@@ -338,18 +403,16 @@
                     btn.textContent = "✅ Order Created!";
                     btn.style.backgroundColor = "#10B981"; 
                     
-                    // We successfully pause because the page doesn't reload anymore!
-                    setTimeout(() => {
-                        document.getElementById("orderFormCard").style.display = "none";
-                        document.getElementById("successReceipt").style.display = "block";
-                        
-                        document.getElementById("receiptPrice").textContent = data.total_price;
-                        document.getElementById("receiptLoads").textContent = data.calculated_loads;
-                        
-                        btn.textContent = "Calculate & Create Order";
-                        btn.style.backgroundColor = "var(--primary)";
-                        btn.disabled = false;
-                    }, 1500);
+                    // INSTANT SUCCESS TRANSITION
+                    document.getElementById("orderFormCard").style.display = "none";
+                    document.getElementById("successReceipt").style.display = "block";
+                    
+                    document.getElementById("receiptPrice").textContent = data.total_price;
+                    document.getElementById("receiptLoads").textContent = data.calculated_loads;
+                    
+                    btn.textContent = "Calculate & Create Order";
+                    btn.style.backgroundColor = "var(--primary)";
+                    btn.disabled = false;
                     
                 } else {
                     const errorData = await res.json();
