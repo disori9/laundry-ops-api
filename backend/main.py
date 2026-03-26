@@ -87,7 +87,7 @@ def create_order(order: OrderCreate):
             data_to_insert = (order.weight_kg, total_price, order.payment_status, order.customer_id, total_loads)
             
             cursor.execute(command, data_to_insert)
-            new_order_id = cursor.fetchone() # Grabs the returning order_id
+            new_order_id = cursor.fetchone()[0]
             
             loads_data = []
             for n in range(total_loads):
