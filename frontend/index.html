@@ -30,6 +30,13 @@
     </style>
 </head>
 <body>
+    <div id="startupOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #F8FAFC; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s ease;">
+        <div style="width: 50px; height: 50px; border: 5px solid #E2E8F0; border-top-color: #3B82F6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <h2 style="color: #1E293B; margin-top: 20px;">Waking up the server...</h2>
+        <p style="color: #64748B; max-width: 400px;">Because we are running on a free cloud tier, the system goes to sleep overnight (or when not used in 15 mins). Please wait 30-50 seconds while it boots up! ☕</p>
+    </div>
+    <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+
     <nav class="navbar">
         <a href="index.html" class="nav-item active">🧺 Shop Floor</a>
         <a href="order.html" class="nav-item">➕ Drop-off</a>
@@ -416,7 +423,7 @@
             }
         }
 
-        // RESTORED ERROR HANDLING!
+// RESTORED ERROR HANDLING!
         async function moveBasket(loadId, newStatus, machineNo) {
             const bodyData = { status: newStatus };
             if (machineNo) bodyData.machine_no = machineNo;
@@ -439,7 +446,35 @@
             }
         }
 
-        loadShopFloor();
+        // --- NEW SERVER WAKE-UP LOGIC ---
+        async function wakeUpServer() {
+            const overlay = document.getElementById('startupOverlay');
+            
+            try {
+                // Ping the new /health endpoint on your Python backend
+                const res = await fetch(`${API_URL}/health`);
+                
+                if (res.ok) {
+                    // Server is awake! Fade out the screen.
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 500); 
+                    
+                    // Now it is safe to load the data
+                    loadShopFloor(); 
+                } else {
+                    // Try again in 3 seconds
+                    setTimeout(wakeUpServer, 3000);
+                }
+            } catch (e) {
+                // Fetch failed (server still sleeping/booting). Try again.
+                setTimeout(wakeUpServer, 3000);
+            }
+        }
+
+        // Instead of calling loadShopFloor() directly, we call wakeUpServer()
+        wakeUpServer();
     </script>
 </body>
 </html>
