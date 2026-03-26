@@ -111,38 +111,13 @@
 
         async function initCRM() {
             try {
-                const cRes = await fetch(`${API_URL}/customers`);
-                const cData = await cRes.json();
-                
-                const oRes = await fetch(`${API_URL}/orders`);
-                const oData = await oRes.json();
-
-                const tickets = await Promise.all(oData.orders.map(o => 
-                    fetch(`${API_URL}/orders/${o.order_id}`).then(r => r.json())
-                ));
-
-                let stats = {};
-                cData.customers.forEach(c => {
-                    stats[c.customer_id] = { id: c.customer_id, name: c.customer_name, phone: c.number, visits: 0, unpaidCount: 0, history: [] };
-                });
-
-                tickets.forEach((t, i) => {
-                    const cid = oData.orders[i].customer_id;
-                    if(stats[cid]) {
-                        stats[cid].visits++;
-                        if(t.payment_status === 'UNPAID') {
-                            stats[cid].unpaidCount++;
-                        }
-                        // We no longer save the price, just the ID and Status
-                        stats[cid].history.push({ id: t.order_id, status: t.payment_status });
-                    }
-                });
-
-                // Sort alphabetically by name instead of by money spent
-                masterData = Object.values(stats).sort((a,b) => a.name.localeCompare(b.name));
+                // Single request replaces GET /customers + GET /orders + N ticket fetches
+                const res = await fetch(`${API_URL}/customers/summary`);
+                const data = await res.json();
+                // Already sorted alphabetically by the backend
+                masterData = data.customers;
                 renderCRM(masterData);
-
-            } catch (e) { 
+            } catch (e) {
                 document.getElementById('crmBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: #EF4444;">Error connecting to the server. Is Python running?</td></tr>';
             }
         }

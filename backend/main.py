@@ -440,3 +440,98 @@ def complete_all_bagged_loads(order_id: int, payment_data: Optional[PaymentUpdat
     finally:
         conn.close()
     return {"message": f"Completed {updated} load(s) for order {order_id}"}
+
+
+@app.get("/customers/stats")
+def get_customer_stats():
+    """
+    Replaces the N+2 pattern on customer.html (GET /customers + GET /orders + N GET /orders/{id}).
+    Returns every customer with their visit count, unpaid count, and order history
+    in 2 DB queries total regardless of how many customers or orders exist.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # Query 1: all customers
+            cursor.execute('SELECT customer_id, cust_name, number FROM customers ORDER BY cust_name')
+            customers_raw = cursor.fetchall()
+
+            # Query 2: all orders with just the fields we need for stats
+            cursor.execute('''
+                SELECT order_id, customer_id, payment_status
+                FROM orders
+                ORDER BY order_id DESC
+            ''')
+            orders_raw = cursor.fetchall()
+
+        # Assemble stats in Python — no more per-order fetches
+        stats = {}
+        for row in customers_raw:
+            stats[row[0]] = {
+                "id": row[0],
+                "name": row[1],
+                "phone": row[2],
+                "visits": 0,
+                "unpaidCount": 0,
+                "history": []
+            }
+
+        for order in orders_raw:
+            order_id, customer_id, payment_status = order
+            if customer_id in stats:
+                stats[customer_id]["visits"] += 1
+                if payment_status == "UNPAID":
+                    stats[customer_id]["unpaidCount"] += 1
+                stats[customer_id]["history"].append({
+                    "id": order_id,
+                    "status": payment_status
+                })
+
+        return {"customers": list(stats.values())}
+    finally:
+        conn.close()
+
+
+@app.get("/customers/summary")
+def get_customers_summary():
+    """
+    Replaces the N+2 pattern in customer.html (GET /customers + GET /orders + N ticket fetches).
+    Returns every customer with their full order history aggregated in 2 DB queries.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # All customers
+            cursor.execute('SELECT customer_id, cust_name, number FROM customers ORDER BY cust_name ASC')
+            customers_raw = cursor.fetchall()
+
+            # All orders with payment status in one shot — no per-order fetches needed
+            cursor.execute('SELECT order_id, customer_id, payment_status FROM orders ORDER BY order_id DESC')
+            orders_raw = cursor.fetchall()
+
+        # Build order history keyed by customer
+        history_by_customer = {}
+        for order in orders_raw:
+            cid = order[1]
+            history_by_customer.setdefault(cid, []).append({
+                "id": order[0],
+                "status": order[2]
+            })
+
+        customers = []
+        for c in customers_raw:
+            cid = c[0]
+            history = history_by_customer.get(cid, [])
+            unpaid = sum(1 for o in history if o["status"] == "UNPAID")
+            customers.append({
+                "id": cid,
+                "name": c[1],
+                "phone": c[2],
+                "visits": len(history),
+                "unpaidCount": unpaid,
+                "history": history
+            })
+
+        return {"customers": customers}
+    finally:
+        conn.close()
