@@ -201,9 +201,9 @@
                             } else {
                                 statusBadge = `<span class="status-badge" style="background: #D1FAE5; color: #065F46;">Bagged (Ready)</span>`;
                                 if (ticketData.payment_status === 'UNPAID') {
-                                    floorActions = `<button class="action-btn" style="background: #EF4444; color: white; border-color: #EF4444;" onclick="batchFinishOrder(${order.order_id}, false, ${ticketData.total_price})">💵 Collect ₱${ticketData.total_price}</button>`;
+                                    floorActions = `<button class="action-btn" style="background: #EF4444; color: white; border-color: #EF4444;" onclick="batchFinishOrder(this, ${order.order_id}, false, ${ticketData.total_price})">💵 Collect ₱${ticketData.total_price}</button>`;
                                 } else {
-                                    floorActions = `<button class="action-btn" style="background: #10B981; color: white; border-color: #10B981;" onclick="batchFinishOrder(${order.order_id}, true, 0)">✅ Release to Customer</button>`;
+                                    floorActions = `<button class="action-btn" style="background: #10B981; color: white; border-color: #10B981;" onclick="batchFinishOrder(this, ${order.order_id}, true, 0)">✅ Release to Customer</button>`;
                                 }
                             }
                             
@@ -356,58 +356,51 @@
         async function confirmBagging() {
             if (!activeOrderToBag) return;
             const confirmBtn = document.getElementById("modalConfirmBtn");
-            confirmBtn.textContent = "Bagging Order...";
+            confirmBtn.textContent = "⏳ Bagging...";
             confirmBtn.disabled = true;
+            confirmBtn.style.opacity = "0.6";
 
             try {
-                const res = await fetch(`${API_URL}/orders/${activeOrderToBag}`);
-                const ticketData = await res.json();
-                const basketsToBag = ticketData.baskets.filter(b => b.status === 'FOLDING');
-
-                for (const basket of basketsToBag) {
-                    await fetch(`${API_URL}/loads/${basket.load_id}/status`, {
-                        method: "PATCH", headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: 'BAGGED', machine_no: null })
-                    });
-                }
-
+                await fetch(`${API_URL}/orders/${activeOrderToBag}/bag-all`, {
+                    method: "PATCH", headers: { "Content-Type": "application/json" }
+                });
                 closeModal();
-                loadShopFloor(); 
+                loadShopFloor();
             } catch (error) {
-                alert("Error batch-bagging loads.");
+                alert("Error bagging order.");
                 confirmBtn.textContent = "✅ Items Match (Bag It)";
                 confirmBtn.disabled = false;
+                confirmBtn.style.opacity = "1";
             }
         }
 
-        async function batchFinishOrder(orderId, isPaid, price) {
+        async function batchFinishOrder(btn, orderId, isPaid, price) {
             if (!isPaid) {
                 const confirmed = confirm(`Collect ₱${price} from the customer to release this order?`);
-                if (!confirmed) return; 
-                
-                await fetch(`${API_URL}/orders/${orderId}/payment`, {
-                    method: "PATCH", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ payment_status: 'PAID' })
-                });
+                if (!confirmed) return;
             } else {
                 const confirmed = confirm(`Release this order to the customer?`);
                 if (!confirmed) return;
             }
 
-            try {
-                const res = await fetch(`${API_URL}/orders/${orderId}`);
-                const ticketData = await res.json();
-                const basketsToFinish = ticketData.baskets.filter(b => b.status === 'BAGGED');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "⏳ Processing...";
+            btn.style.opacity = "0.6";
 
-                for (const basket of basketsToFinish) {
-                    await fetch(`${API_URL}/loads/${basket.load_id}/status`, {
-                        method: "PATCH", headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: 'COMPLETED', machine_no: null })
-                    });
-                }
+            try {
+                // complete-all handles payment update + marking loads COMPLETED in one call
+                const body = isPaid ? {} : { payment_status: 'PAID' };
+                await fetch(`${API_URL}/orders/${orderId}/complete-all`, {
+                    method: "PATCH", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
                 loadShopFloor();
             } catch (error) {
                 alert("Error completing order.");
+                btn.disabled = false;
+                btn.textContent = originalText;
+                btn.style.opacity = "1";
             }
         }
 

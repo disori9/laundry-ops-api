@@ -39,6 +39,7 @@ def create_customer(customer: CustomerCreate):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
+            # PostgreSQL uses %s instead of ?
             command = 'INSERT INTO customers(cust_name, number) VALUES (%s, %s) RETURNING customer_id'
             data_to_insert = (customer.cust_name, customer.number)
             cursor.execute(command, data_to_insert)
@@ -169,17 +170,16 @@ def verify_order_item(order_id: int, category_id: int, verification: ItemVerific
     return {"message": f"Order {order_id} category {category_id} verified count updated to {verification.verified_count}"}
 
 
+
 @app.get("/shop-floor")
 def get_shop_floor():
     """
     Single-request replacement for the N+2 pattern on the shop floor page.
-    Returns all active orders (with at least one non-COMPLETED load) bundled
-    with their customer, baskets, and items — 3 DB queries total instead of N+2.
+    Returns all active orders bundled with customer, baskets, and items — 3 DB queries total.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # 1. Get all active orders joined with customer info
             cursor.execute('''
                 SELECT DISTINCT
                     o.order_id, o.weight_kg, o.total_price, o.payment_status,
@@ -188,7 +188,7 @@ def get_shop_floor():
                 FROM orders o
                 LEFT JOIN customers c ON o.customer_id = c.customer_id
                 JOIN order_loads ol ON o.order_id = ol.order_id
-                WHERE ol.status != \'COMPLETED\'
+                WHERE ol.status != 'COMPLETED'
                 ORDER BY o.order_id
             ''')
             orders_raw = cursor.fetchall()
@@ -199,21 +199,18 @@ def get_shop_floor():
             order_ids = tuple(row[0] for row in orders_raw)
             placeholders = ','.join(['%s'] * len(order_ids))
 
-            # 2. Get all loads for these orders in one query
             cursor.execute(
                 f'SELECT load_id, order_id, status, machine_no FROM order_loads WHERE order_id IN ({placeholders})',
                 order_ids
             )
             loads_raw = cursor.fetchall()
 
-            # 3. Get all items for these orders in one query
             cursor.execute(
                 f'SELECT order_id, category_id, initial_count, verified_count FROM order_items WHERE order_id IN ({placeholders})',
                 order_ids
             )
             items_raw = cursor.fetchall()
 
-        # Assemble loads by order
         loads_by_order = {}
         for load in loads_raw:
             oid = load[1]
@@ -221,7 +218,6 @@ def get_shop_floor():
                 "load_id": load[0], "status": load[2], "machine_no": load[3]
             })
 
-        # Assemble items by order
         items_by_order = {}
         for item in items_raw:
             oid = item[0]
@@ -400,3 +396,47 @@ def update_order_payment(order_id: int, payment_data: PaymentUpdate):
     finally:
         conn.close()
     return {"message": "Payment updated"}
+
+@app.patch("/orders/{order_id}/bag-all")
+def bag_all_folding_loads(order_id: int):
+    """
+    Bags every FOLDING load for an order in a single DB round-trip.
+    Replaces the frontend's sequential loop of N individual PATCH /loads/{id}/status calls.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE order_loads SET status = 'BAGGED', machine_no = NULL WHERE order_id = %s AND status = 'FOLDING'",
+                (order_id,)
+            )
+            updated = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return {"message": f"Bagged {updated} load(s) for order {order_id}"}
+
+
+@app.patch("/orders/{order_id}/complete-all")
+def complete_all_bagged_loads(order_id: int, payment_data: Optional[PaymentUpdate] = None):
+    """
+    Marks every BAGGED load as COMPLETED and optionally updates payment — 1 or 2 DB queries.
+    Replaces the frontend's GET ticket + sequential loop of N PATCH /loads/{id}/status calls.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            if payment_data and payment_data.payment_status:
+                cursor.execute(
+                    'UPDATE orders SET payment_status = %s WHERE order_id = %s',
+                    (payment_data.payment_status, order_id)
+                )
+            cursor.execute(
+                "UPDATE order_loads SET status = 'COMPLETED', machine_no = NULL WHERE order_id = %s AND status = 'BAGGED'",
+                (order_id,)
+            )
+            updated = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return {"message": f"Completed {updated} load(s) for order {order_id}"}
