@@ -157,7 +157,7 @@
 
             body.innerHTML = list.map(c => `
                 <tr onclick="viewCustomer(${c.id})">
-                    <td style="font-weight: 600; color: var(--text-main);">${c.name}</td>
+                    <td style="font-weight: 600; color: var(--text-main);">${c.cust_name}</td>
                     <td style="color: #64748B;">${c.phone}</td>
                     <td style="color: var(--text-main); font-weight: bold;">${c.visits}</td>
                 </tr>
@@ -166,7 +166,7 @@
 
         function doSearch() {
             const q = document.getElementById('crmSearch').value.toLowerCase();
-            const filtered = masterData.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+            const filtered = masterData.filter(c => c.cust_name.toLowerCase().includes(q) || c.phone.includes(q));
             renderCRM(filtered);
         }
 
