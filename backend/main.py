@@ -169,6 +169,90 @@ def verify_order_item(order_id: int, category_id: int, verification: ItemVerific
     return {"message": f"Order {order_id} category {category_id} verified count updated to {verification.verified_count}"}
 
 
+@app.get("/shop-floor")
+def get_shop_floor():
+    """
+    Single-request replacement for the N+2 pattern on the shop floor page.
+    Returns all active orders (with at least one non-COMPLETED load) bundled
+    with their customer, baskets, and items — 3 DB queries total instead of N+2.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            # 1. Get all active orders joined with customer info
+            cursor.execute('''
+                SELECT DISTINCT
+                    o.order_id, o.weight_kg, o.total_price, o.payment_status,
+                    o.customer_id, o.total_loads, o.created_at,
+                    c.cust_name, c.number
+                FROM orders o
+                LEFT JOIN customers c ON o.customer_id = c.customer_id
+                JOIN order_loads ol ON o.order_id = ol.order_id
+                WHERE ol.status != \'COMPLETED\'
+                ORDER BY o.order_id
+            ''')
+            orders_raw = cursor.fetchall()
+
+            if not orders_raw:
+                return {"orders": []}
+
+            order_ids = tuple(row[0] for row in orders_raw)
+            placeholders = ','.join(['%s'] * len(order_ids))
+
+            # 2. Get all loads for these orders in one query
+            cursor.execute(
+                f'SELECT load_id, order_id, status, machine_no FROM order_loads WHERE order_id IN ({placeholders})',
+                order_ids
+            )
+            loads_raw = cursor.fetchall()
+
+            # 3. Get all items for these orders in one query
+            cursor.execute(
+                f'SELECT order_id, category_id, initial_count, verified_count FROM order_items WHERE order_id IN ({placeholders})',
+                order_ids
+            )
+            items_raw = cursor.fetchall()
+
+        # Assemble loads by order
+        loads_by_order = {}
+        for load in loads_raw:
+            oid = load[1]
+            loads_by_order.setdefault(oid, []).append({
+                "load_id": load[0], "status": load[2], "machine_no": load[3]
+            })
+
+        # Assemble items by order
+        items_by_order = {}
+        for item in items_raw:
+            oid = item[0]
+            items_by_order.setdefault(oid, []).append({
+                "category_id": item[1],
+                "count": item[2],
+                "verified_count": int(item[3]) if item[3] is not None else 0
+            })
+
+        orders = []
+        for row in orders_raw:
+            oid = row[0]
+            orders.append({
+                "order_id": oid,
+                "weight_kg": row[1],
+                "total_price": row[2],
+                "payment_status": row[3],
+                "customer_id": row[4],
+                "total_loads": row[5],
+                "created_at": row[6],
+                "customer_name": row[7] or "Unknown",
+                "customer_number": row[8] or "N/A",
+                "baskets": loads_by_order.get(oid, []),
+                "items": items_by_order.get(oid, [])
+            })
+
+        return {"orders": orders}
+    finally:
+        conn.close()
+
+
 @app.get("/orders")
 def get_all_orders(payment_status: Optional[str] = None):
     conn = get_db_connection()

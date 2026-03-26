@@ -100,31 +100,19 @@
         let activeOrderToBag = null;
 
         async function loadShopFloor() {
-            let customerMap = {};
-            try {
-                const custRes = await fetch(`${API_URL}/customers`);
-                const custData = await custRes.json();
-                custData.customers.forEach(c => { customerMap[c.customer_id] = c; });
-            } catch (e) { console.error("Could not load customers."); }
+            // One request replaces the old N+2 pattern (1 customers + 1 orders + N tickets)
+            const res = await fetch(`${API_URL}/shop-floor`);
+            const data = await res.json();
 
-            const ordersRes = await fetch(`${API_URL}/orders`);
-            const ordersData = await ordersRes.json();
-            
             let dirtyZoneHTML = "";
             let cleanZoneHTML = "";
             let machines = { washer: {1: "", 2: "", 3: ""}, dryer: {1: "", 2: "", 3: ""} };
 
-            const ticketPromises = ordersData.orders.map(order => 
-                fetch(`${API_URL}/orders/${order.order_id}`).then(res => res.json())
-            );
-            const allTickets = await Promise.all(ticketPromises);
-
-            allTickets.forEach((ticketData, index) => {
-                const order = ordersData.orders[index];
+            data.orders.forEach((ticketData) => {
+                const order = ticketData;
                 globalOrderCache[order.order_id] = ticketData.items || [];
 
-                const customer = customerMap[order.customer_id] || { customer_name: "Unknown", number: "N/A" };
-                const customerDetails = `${customer.customer_name} <br> <span style="color:var(--text-muted); font-size:0.8rem;">📞 ${customer.number}</span>`;
+                const customerDetails = `${order.customer_name} <br> <span style="color:var(--text-muted); font-size:0.8rem;">📞 ${order.customer_number}</span>`;
 
                 const dateObj = new Date(order.created_at + 'Z'); 
                 const timeString = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -425,12 +413,10 @@
 
 // RESTORED ERROR HANDLING!
         async function moveBasket(btn, loadId, newStatus, machineNo) {
-            // Immediately disable the clicked button so staff know it's processing
             const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = "⏳ Moving...";
             btn.style.opacity = "0.6";
-
             const bodyData = { status: newStatus };
             if (machineNo) bodyData.machine_no = machineNo;
             else bodyData.machine_no = null;
@@ -443,13 +429,12 @@
                 
                 if (!res.ok) {
                     const errorData = await res.json();
-                    // Re-enable button on error so staff can try again
                     btn.disabled = false;
                     btn.textContent = originalText;
                     btn.style.opacity = "1";
-                    alert(`⚠️ Error: ${errorData.detail}`); 
+                    alert(`⚠️ Error: ${errorData.detail}`);
                 } else {
-                    loadShopFloor(); 
+                    loadShopFloor();
                 }
             } catch (error) {
                 btn.disabled = false;
@@ -459,34 +444,52 @@
             }
         }
 
-        // --- NEW SERVER WAKE-UP LOGIC ---
+        function dismissOverlay() {
+            const overlay = document.getElementById('startupOverlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; }, 500);
+        }
+
         async function wakeUpServer() {
             const overlay = document.getElementById('startupOverlay');
-            
+
+            // Only show the "waking up" overlay if the server doesn't respond within 1 second.
+            // If the server is already warm, the overlay flashes for <1s and disappears.
+            let overlayShown = false;
+            const overlayTimer = setTimeout(() => {
+                overlayShown = true;
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '1';
+            }, 1000);
+
+            // Start the actual data load immediately — don't wait for /health first
             try {
-                // Ping the new /health endpoint on your Python backend
-                const res = await fetch(`${API_URL}/health`);
-                
-                if (res.ok) {
-                    // Server is awake! Fade out the screen.
-                    overlay.style.opacity = '0';
-                    setTimeout(() => {
-                        overlay.style.display = 'none';
-                    }, 500); 
-                    
-                    // Now it is safe to load the data
-                    loadShopFloor(); 
-                } else {
-                    // Try again in 3 seconds
-                    setTimeout(wakeUpServer, 3000);
-                }
+                await loadShopFloor();
+                clearTimeout(overlayTimer);
+                dismissOverlay();
             } catch (e) {
-                // Fetch failed (server still sleeping/booting). Try again.
-                setTimeout(wakeUpServer, 3000);
+                // Server is cold — keep showing overlay and retry via /health poll
+                clearTimeout(overlayTimer);
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '1';
+                pollUntilAwake();
             }
         }
 
-        // Instead of calling loadShopFloor() directly, we call wakeUpServer()
+        async function pollUntilAwake() {
+            try {
+                const res = await fetch(`${API_URL}/health`);
+                if (res.ok) {
+                    await loadShopFloor();
+                    dismissOverlay();
+                } else {
+                    setTimeout(pollUntilAwake, 3000);
+                }
+            } catch (e) {
+                setTimeout(pollUntilAwake, 3000);
+            }
+        }
+
         wakeUpServer();
     </script>
 </body>
