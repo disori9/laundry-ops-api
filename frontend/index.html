@@ -155,13 +155,13 @@
                         stickerAction = `
                             <div style="margin-top: 10px; font-size: 0.8rem; font-weight: bold; color: var(--text-muted); margin-bottom: 5px;">To Dryer:</div>
                             <div class="action-group" style="justify-content: flex-start;">
-                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 1)">Dryer 1</button>
-                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 2)">Dryer 2</button>
-                                <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'DRYING', 3)">Dryer 3</button>
+                                <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'DRYING', 1)">Dryer 1</button>
+                                <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'DRYING', 2)">Dryer 2</button>
+                                <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'DRYING', 3)">Dryer 3</button>
                             </div>
                         `;
                     } else if (basket.status === 'DRYING') {
-                        stickerAction = `<div style="margin-top: 10px;"><button class="action-btn" onclick="moveBasket(${basket.load_id}, 'FOLDING', null)">To Folding Station</button></div>`;
+                        stickerAction = `<div style="margin-top: 10px;"><button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'FOLDING', null)">To Folding Station</button></div>`;
                     }
 
                     const stickerHTML = `
@@ -188,9 +188,9 @@
                                 <div style="text-align: right;">
                                     <div style="font-size:0.8rem; font-weight:bold; color:var(--text-muted); margin-bottom: 5px;">Wash in:</div>
                                     <div class="action-group">
-                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 1)">W1</button>
-                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 2)">W2</button>
-                                        <button class="action-btn" onclick="moveBasket(${basket.load_id}, 'WASHING', 3)">W3</button>
+                                        <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'WASHING', 1)">W1</button>
+                                        <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'WASHING', 2)">W2</button>
+                                        <button class="action-btn" onclick="moveBasket(this, ${basket.load_id}, 'WASHING', 3)">W3</button>
                                     </div>
                                 </div>
                             `;
@@ -424,7 +424,13 @@
         }
 
 // RESTORED ERROR HANDLING!
-        async function moveBasket(loadId, newStatus, machineNo) {
+        async function moveBasket(btn, loadId, newStatus, machineNo) {
+            // Immediately disable the clicked button so staff know it's processing
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "⏳ Moving...";
+            btn.style.opacity = "0.6";
+
             const bodyData = { status: newStatus };
             if (machineNo) bodyData.machine_no = machineNo;
             else bodyData.machine_no = null;
@@ -437,11 +443,18 @@
                 
                 if (!res.ok) {
                     const errorData = await res.json();
+                    // Re-enable button on error so staff can try again
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                    btn.style.opacity = "1";
                     alert(`⚠️ Error: ${errorData.detail}`); 
                 } else {
                     loadShopFloor(); 
                 }
             } catch (error) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+                btn.style.opacity = "1";
                 alert("Could not connect to the server.");
             }
         }

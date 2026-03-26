@@ -123,7 +123,7 @@
 
                 let stats = {};
                 cData.customers.forEach(c => {
-                    stats[c.customer_id] = { id: c.customer_id, name: c.cust_name, phone: c.number, visits: 0, unpaidCount: 0, history: [] };
+                    stats[c.customer_id] = { id: c.customer_id, name: c.customer_name, phone: c.number, visits: 0, unpaidCount: 0, history: [] };
                 });
 
                 tickets.forEach((t, i) => {

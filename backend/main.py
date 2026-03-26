@@ -39,15 +39,15 @@ def create_customer(customer: CustomerCreate):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # PostgreSQL uses %s instead of ?
-            command = 'INSERT INTO customers(cust_name, number) VALUES (%s, %s)'
+            command = 'INSERT INTO customers(cust_name, number) VALUES (%s, %s) RETURNING customer_id'
             data_to_insert = (customer.cust_name, customer.number)
             cursor.execute(command, data_to_insert)
+            new_customer_id = cursor.fetchone()[0]
         conn.commit()
     finally:
         conn.close()
 
-    return {"message": "Customer created successfully", "name": customer.cust_name, "number": customer.number}
+    return {"message": "Customer created successfully", "customer_id": new_customer_id, "name": customer.cust_name, "number": customer.number}
 
 
 def get_load_price(weight: float) -> int:
@@ -273,7 +273,7 @@ def get_order_ticket(order_id: int):
                 item_detail = {
                     "category_id": item[0],
                     "count": item[1],
-                    "verified_count": int(item[2] if item is not None else 0)
+                    "verified_count": int(item[2]) if item[2] is not None else 0
                 }
                 order_ticket["items"].append(item_detail)
                 
